@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>CampusFind | Lost & Found</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+
+            <div class="brand-icon">
+                🔎
+            </div>
+
+            <div class="brand-text">
+
+                <h2>CampusFind</h2>
+
+                <span>Lost & Found</span>
+
+            </div>
+
+        </div>
+
+
+        <nav class="navigation">
+
+            <button class="nav-item active"
+                    onclick="showSection('dashboard', this)">
+
+                <span class="nav-icon">📊</span>
+
+                <span>Dashboard</span>
+
+            </button>
+
+
+            <button class="nav-item"
+                    onclick="showSection('report', this)">
+
+                <span class="nav-icon">📝</span>
+
+                <span>Report Item</span>
+
+            </button>
+
+
+            <button class="nav-item"
+                    onclick="showSection('lost', this)">
+
+                <span class="nav-icon">🔴</span>
+
+                <span>Lost Items</span>
+
+            </button>
+
+
+            <button class="nav-item"
+                    onclick="showSection('found', this)">
+
+                <span class="nav-icon">🟢</span>
+
+                <span>Found Items</span>
+
+            </button>
+
+
+            <button class="nav-item"
+                    onclick="showSection('ai', this)">
+
+                <span class="nav-icon">🤖</span>
+
+                <span>AI Match</span>
+
+            </button>
+
+
+            <button class="nav-item"
+                    onclick="openNotifications()">
+
+                <span class="nav-icon">🔔</span>
+
+                <span>Notifications</span>
+
+                <span class="nav-badge">2</span>
+
+            </button>
+
+
+            <button class="nav-item"
+                    onclick="showSection('admin', this)">
+
+                <span class="nav-icon">🛠️</span>
+
+                <span>Admin Panel</span>
+
+            </button>
+
+        </nav>
+
+
+        <div class="sidebar-bottom">
+
+            <div class="help-box">
+
+                <div class="help-icon">
+                    💬
+                </div>
+
+                <div>
+
+                    <strong>Need Help?</strong>
+
+                    <small>
+                        Contact CampusFind
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <button class="logout-sidebar"
+                    onclick="logoutUser()">
+
+                <span>🚪</span>
+
+                <span>Logout</span>
+
+            </button>
+
+        </div>
+
+    </aside>
+
+
+    <!-- =====================================================
+         MAIN
+    ====================================================== -->
+
+    <main class="main">
+
+        <header class="topbar">
+
+            <div class="top-title">
+
+                <h3>
+                    Campus Lost & Found
+                </h3>
+
+            </div>
+
+
+            <div class="top-right">
+
+                <div class="online">
+
+                    <span class="online-dot"></span>
+
+                    <div id="liveDate">
+                        Loading...
+                    </div>
+
+                </div>
+
+
+                <button class="notification"
+                        onclick="openNotifications()">
+
+                    🔔
+
+                    <b id="notificationCount">
+                        2
+                    </b>
+
+                </button>
+
+
+                <div class="profile">
+
+                    <div class="avatar"
+                         id="profileAvatar">
+
+                        S
+
+                    </div>
+
+                    <div class="profile-details">
+
+                        <strong id="profileName">
+                            Student
+                        </strong>
+
+                        <small>
+                            Student
+                        </small>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- =====================================================
+             NOTIFICATIONS
+        ====================================================== -->
+
+        <div id="notificationPanel"
+             class="notification-panel">
+
+            <div class="notification-header">
+
+                <h3>
+                    Notifications
+                </h3>
+
+                <button onclick="closeNotifications()">
+                    ×
+                </button>
+
+            </div>
+
+
+            <div class="notification-item">
+
+                <div class="notification-icon purple">
+                    🤖
+                </div>
+
+                <div>
+
+                    <strong>
+                        AI Match Found
+                    </strong>
+
+                    <p>
+                        A possible match was found
+                        for your lost item.
+                    </p>
+
+                    <small>
+                        Just now
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <div class="notification-item">
+
+                <div class="notification-icon green">
+                    ✓
+                </div>
+
+                <div>
+
+                    <strong>
+                        Report Submitted
+                    </strong>
+
+                    <p>
+                        Your report was successfully
+                        submitted.
+                    </p>
+
+                    <small>
+                        Recently
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <button class="clear-notifications"
+                    onclick="clearNotifications()">
+
+                Mark all as read
+
+            </button>
+
+        </div>
+
+
+        <!-- =====================================================
+             DASHBOARD
+        ====================================================== -->
+
+        <section id="dashboard"
+                 class="section active-section">
+
+            <div class="page-heading">
+
+                <h1>
+                    CampusFind
+                </h1>
+
+                <p>
+                    Find lost items. Report found items.
+                    Let AI help you connect them.
+                </p>
+
+            </div>
+
+
+            <div class="quick-actions">
+
+                <div class="action-card"
+                     onclick="openReport('lost')">
+
+                    <div class="action-icon red">
+                        🔴
+                    </div>
+
+                    <div class="action-content">
+
+                        <h3>
+                            I Lost Something
+                        </h3>
+
+                        <p>
+                            Report your lost item
+                            to the campus community.
+                        </p>
+
+                    </div>
+
+                    <span class="arrow">
+                        →
+                    </span>
+
+                </div>
+
+
+                <div class="action-card"
+                     onclick="openReport('found')">
+
+                    <div class="action-icon green">
+                        🟢
+                    </div>
+
+                    <div class="action-content">
+
+                        <h3>
+                            I Found Something
+                        </h3>
+
+                        <p>
+                            Report an item you found
+                            around campus.
+                        </p>
+
+                    </div>
+
+                    <span class="arrow">
+                        →
+                    </span>
+
+                </div>
+
+
+                <div class="action-card"
+                     onclick="showSectionById('lost')">
+
+                    <div class="action-icon blue">
+                        🔍
+                    </div>
+
+                    <div class="action-content">
+
+                        <h3>
+                            Search Items
+                        </h3>
+
+                        <p>
+                            Browse recently reported
+                            items.
+                        </p>
+
+                    </div>
+
+                    <span class="arrow">
+                        →
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="ai-banner">
+
+                <div class="ai-banner-icon">
+                    🤖
+                </div>
+
+                <div>
+
+                    <h3>
+                        AI Image Matching
+                    </h3>
+
+                    <p>
+                        CampusFind compares lost and found
+                        item information and identifies
+                        possible matches.
+                    </p>
+
+                </div>
+
+                <div class="ai-status">
+                    AI ACTIVE
+                </div>
+
+            </div>
+
+
+            <div class="content-heading">
+
+                <div>
+
+                    <h2>
+                        Recent Reports
+                    </h2>
+
+                    <p>
+                        Latest lost and found reports
+                    </p>
+
+                </div>
+
+                <button onclick="showSectionById('lost')">
+                    View All →
+                </button>
+
+            </div>
+
+
+            <div id="recentReports"
+                 class="reports-grid">
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             REPORT
+        ====================================================== -->
+
+        <section id="report"
+                 class="section">
+
+            <div class="page-heading">
+
+                <h1>
+                    📝 Report an Item
+                </h1>
+
+                <p>
+                    Submit details about a lost
+                    or found item.
+                </p>
+
+            </div>
+
+
+            <form id="reportForm"
+                  class="report-form"
+                  enctype="multipart/form-data">
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label>
+                            Report Type
+                        </label>
+
+                        <select name="item_type"
+                                id="itemType"
+                                required>
+
+                            <option value="">
+                                Select report type
+                            </option>
+
+                            <option value="lost">
+                                Lost Item
+                            </option>
+
+                            <option value="found">
+                                Found Item
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Item Name
+                        </label>
+
+                        <input type="text"
+                               name="item_name"
+                               placeholder="Example: Mobile Phone"
+                               required>
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label>
+                            Category
+                        </label>
+
+                        <select name="category">
+
+                            <option>
+                                Electronics
+                            </option>
+
+                            <option>
+                                Wallet
+                            </option>
+
+                            <option>
+                                ID Card
+                            </option>
+
+                            <option>
+                                Keys
+                            </option>
+
+                            <option>
+                                Books
+                            </option>
+
+                            <option>
+                                Bag
+                            </option>
+
+                            <option>
+                                Watch
+                            </option>
+
+                            <option>
+                                Clothing
+                            </option>
+
+                            <option>
+                                Other
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Location
+                        </label>
+
+                        <input type="text"
+                               name="location"
+                               placeholder="Example: Library">
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label>
+                            Date
+                        </label>
+
+                        <input type="date"
+                               name="item_date"
+                               id="itemDate"
+                               required>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Time
+                        </label>
+
+                        <input type="time"
+                               name="item_time"
+                               id="itemTime"
+                               required>
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Description
+                    </label>
+
+                    <textarea name="description"
+                              rows="5"
+                              placeholder="Describe the item, color, brand, identifying features, etc."></textarea>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Item Photo
+                    </label>
+
+                    <div class="upload-box">
+
+                        <input type="file"
+                               name="image"
+                               id="imageInput"
+                               accept="image/png,image/jpeg,image/webp">
+
+                        <div class="upload-content">
+
+                            <div class="upload-camera">
+                                📷
+                            </div>
+
+                            <strong>
+                                Upload item photo
+                            </strong>
+
+                            <small>
+                                JPG, PNG or WEBP
+                            </small>
+
+                        </div>
+
+                    </div>
+
+
+                    <div id="imagePreview"
+                         class="image-preview">
+                    </div>
+
+                </div>
+
+
+                <div class="ai-note">
+
+                    <span>
+                        🤖
+                    </span>
+
+                    <span>
+                        AI will compare this report
+                        with opposite-type reports
+                        and identify possible matches.
+                    </span>
+
+                </div>
+
+
+                <button type="submit"
+                        class="primary-button">
+
+                    🚀 Submit Report
+
+                </button>
+
+            </form>
+
+        </section>
+
+
+        <!-- =====================================================
+             LOST
+        ====================================================== -->
+
+        <section id="lost"
+                 class="section">
+
+            <div class="page-heading">
+
+                <h1>
+                    🔴 Lost Items
+                </h1>
+
+                <p>
+                    Items reported as lost by students.
+                </p>
+
+            </div>
+
+
+            <div id="lostReports"
+                 class="reports-grid">
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             FOUND
+        ====================================================== -->
+
+        <section id="found"
+                 class="section">
+
+            <div class="page-heading">
+
+                <h1>
+                    🟢 Found Items
+                </h1>
+
+                <p>
+                    Items found around the campus.
+                </p>
+
+            </div>
+
+
+            <div id="foundReports"
+                 class="reports-grid">
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             AI
+        ====================================================== -->
+
+        <section id="ai"
+                 class="section">
+
+            <div class="page-heading">
+
+                <h1>
+                    🤖 AI Match Center
+                </h1>
+
+                <p>
+                    AI-powered matching between
+                    lost and found reports.
+                </p>
+
+            </div>
+
+
+            <div class="ai-explanation">
+
+                <div class="big-ai-icon">
+                    🤖
+                </div>
+
+                <div>
+
+                    <h2>
+                        AI Image Matching
+                    </h2>
+
+                    <p>
+                        CampusFind analyzes uploaded
+                        item information and compares
+                        lost reports with found reports.
+                    </p>
+
+
+                    <div class="ai-points">
+
+                        <span>
+                            ✓ Item comparison
+                        </span>
+
+                        <span>
+                            ✓ Category similarity
+                        </span>
+
+                        <span>
+                            ✓ Location similarity
+                        </span>
+
+                        <span>
+                            ✓ Matching percentage
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div id="aiMatches"
+                 class="ai-matches">
+
+                <div class="empty-state">
+
+                    <div class="empty-icon">
+                        🤖
+                    </div>
+
+                    <h3>
+                        AI Match Results
+                    </h3>
+
+                    <p>
+                        Open AI Match to check
+                        possible matches.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             ADMIN
+        ====================================================== -->
+
+        <section id="admin"
+                 class="section">
+
+            <div class="page-heading">
+
+                <h1>
+                    🛠️ Admin Panel
+                </h1>
+
+                <p>
+                    Manage CampusFind reports and users.
+                </p>
+
+            </div>
+
+
+            <div class="admin-stats">
+
+                <div class="admin-stat-card">
+
+                    <div class="admin-stat-icon purple">
+                        📊
+                    </div>
+
+                    <div>
+
+                        <span>
+                            Total Reports
+                        </span>
+
+                        <strong id="adminTotalReports">
+                            0
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="admin-stat-card">
+
+                    <div class="admin-stat-icon red">
+                        🔴
+                    </div>
+
+                    <div>
+
+                        <span>
+                            Lost Items
+                        </span>
+
+                        <strong id="adminLostCount">
+                            0
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="admin-stat-card">
+
+                    <div class="admin-stat-icon green">
+                        🟢
+                    </div>
+
+                    <div>
+
+                        <span>
+                            Found Items
+                        </span>
+
+                        <strong id="adminFoundCount">
+                            0
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="admin-stat-card">
+
+                    <div class="admin-stat-icon blue">
+                        👥
+                    </div>
+
+                    <div>
+
+                        <span>
+                            Users
+                        </span>
+
+                        <strong id="adminUserCount">
+                            0
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="admin-card">
+
+                <div class="admin-card-header">
+
+                    <div>
+
+                        <h2>
+                            Admin Controls
+                        </h2>
+
+                        <p>
+                            Manage CampusFind data.
+                        </p>
+
+                    </div>
+
+                    <span class="admin-label">
+                        ADMIN
+                    </span>
+
+                </div>
+
+
+                <div class="admin-actions">
+
+                    <button onclick="loadAdminReports()">
+                        📋 View All Reports
+                    </button>
+
+                    <button onclick="loadAdminUsers()">
+                        👥 Manage Users
+                    </button>
+
+                    <button onclick="refreshAdminStats()">
+                        🔄 Refresh Statistics
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div class="admin-card">
+
+                <div class="admin-card-header">
+
+                    <div>
+
+                        <h2>
+                            Recent Reports
+                        </h2>
+
+                        <p>
+                            Submitted student reports.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div id="adminReports"
+                     class="admin-reports">
+
+                    <div class="empty-state">
+
+                        <div class="empty-icon">
+                            📋
+                        </div>
+
+                        <h3>
+                            No reports loaded
+                        </h3>
+
+                        <p>
+                            Click View All Reports.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<!-- ============================================================
+     LOGIN MODAL
+============================================================= -->
+
+<div id="loginModal"
+     class="modal">
+
+    <div class="modal-content">
+
+        <button class="close-modal"
+                onclick="closeLogin()"
+                type="button">
+            ×
+        </button>
+
+
+        <div class="login-logo">
+            🔎
+        </div>
+
+
+        <h2>
+            Welcome to CampusFind
+        </h2>
+
+        <p>
+            Login to report and manage items.
+        </p>
+
+
+        <form id="loginForm">
+
+            <div class="form-group">
+
+                <label>
+                    Username
+                </label>
+
+                <input type="text"
+                       id="username"
+                       placeholder="Enter username"
+                       autocomplete="username"
+                       required>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label>
+                    Password
+                </label>
+
+                <div class="password-box">
+
+                    <input type="password"
+                           id="password"
+                           placeholder="Enter password"
+                           autocomplete="current-password"
+                           required>
+
+                    <button type="button"
+                            onclick="togglePassword()">
+                        👁
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <button class="primary-button"
+                    type="submit">
+
+                🔐 Login
+
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- ============================================================
+     TOAST
+============================================================= -->
+
+<div id="toast"
+     class="toast">
+</div>
+
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+
+</html>

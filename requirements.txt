@@ -1,0 +1,6 @@
+Flask
+Flask-Cors
+Werkzeug
+python-dotenv
+google-genai
+gunicorn
