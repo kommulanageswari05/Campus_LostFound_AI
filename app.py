@@ -33,15 +33,16 @@ except ImportError:
 # PATHS
 # ============================================================
 
+
 BASE_DIR = Path(__file__).resolve().parent
-PROJECT_DIR = BASE_DIR.parent
 
 ENV_FILE = BASE_DIR / ".env"
 
 load_dotenv(ENV_FILE)
 
-TEMPLATES_DIR = PROJECT_DIR / "templates"
-STATIC_DIR = TEMPLATES_DIR / "static"
+# Flask folders are inside the same folder as app.py
+TEMPLATES_DIR = BASE_DIR / "templates"
+STATIC_DIR = BASE_DIR / "static"
 
 UPLOAD_DIR = BASE_DIR / "uploads"
 DATABASE = BASE_DIR / "database.db"
