@@ -33,7 +33,6 @@ except ImportError:
 # PATHS
 # ============================================================
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 ENV_FILE = BASE_DIR / ".env"
@@ -1889,12 +1888,22 @@ def file_too_large(error):
 
 
 # ============================================================
+# DATABASE STARTUP
+# ============================================================
+
+# IMPORTANT:
+# This runs both locally and when Render starts Gunicorn.
+# Without this, Render may create database.db without
+# creating the users and reports tables.
+
+init_db()
+
+
+# ============================================================
 # START
 # ============================================================
 
 if __name__ == "__main__":
-
-    init_db()
 
     print()
     print("=" * 60)
