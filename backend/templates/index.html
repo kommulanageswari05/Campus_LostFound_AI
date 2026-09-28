@@ -1,0 +1,1900 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CampusFind | Lost & Found AI</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        /* ================= ADMIN FILTERS ================= */
+
+        .admin-report-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0 20px;
+        }
+
+        .admin-filter {
+            padding: 9px 16px;
+            border: 1px solid #d9deea;
+            background: #ffffff;
+            color: #344054;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .admin-filter:hover {
+            background: #f5f7ff;
+        }
+
+        .admin-filter.active {
+            background: #eef2ff;
+            border-color: #6366f1;
+            color: #4338ca;
+        }
+
+        /* ================= CLAIM BUTTON ================= */
+
+        .claim-btn {
+            width: 100%;
+            padding: 11px 16px;
+            margin-top: 14px;
+            border: none;
+            border-radius: 10px;
+            background: #4f46e5;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+
+        .claim-btn:hover {
+            background: #4338ca;
+            transform: translateY(-1px);
+        }
+
+        /* ================= CLAIM MODAL ================= */
+
+        #claimModal {
+            display: none;
+        }
+
+        .claim-item-info {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+
+        /* ================= ADMIN CLAIM CARD ================= */
+
+        .admin-claim-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 16px;
+            background: #ffffff;
+        }
+
+        .admin-claim-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .admin-claim-title {
+            margin: 0;
+            color: #111827;
+        }
+
+        .admin-claim-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .admin-claim-status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .admin-claim-status.approved {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .admin-claim-status.rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .claimant-info {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .claimant-info div {
+            background: #f8fafc;
+            border-radius: 9px;
+            padding: 10px 12px;
+        }
+
+        .claimant-info strong {
+            display: block;
+            font-size: 12px;
+            color: #667085;
+            margin-bottom: 3px;
+        }
+
+        .claim-message {
+            background: #f8fafc;
+            border-left: 4px solid #6366f1;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+
+        .claim-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .claim-actions button {
+            border: none;
+            border-radius: 9px;
+            padding: 10px 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .claim-approve-btn {
+            background: #16a34a;
+            color: white;
+        }
+
+        .claim-reject-btn {
+            background: #dc2626;
+            color: white;
+        }
+
+        .claim-ai-score {
+            background: #eef2ff;
+            border: 1px solid #c7d2fe;
+            color: #3730a3;
+            padding: 10px 14px;
+            border-radius: 10px;
+            margin-top: 12px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 700px) {
+            .claimant-info {
+                grid-template-columns: 1fr;
+            }
+
+            .admin-claim-header {
+                flex-direction: column;
+            }
+
+            .claim-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+
+<body>
+
+
+<!-- =========================================================
+     SIDEBAR
+========================================================= -->
+
+<aside class="sidebar">
+
+    <div class="logo">
+
+        <div class="logo-icon">
+            🔎
+        </div>
+
+        <div>
+            <h2>CampusFind</h2>
+            <span>Lost & Found AI</span>
+        </div>
+
+    </div>
+
+
+    <nav class="sidebar-nav">
+
+        <button class="nav-item active"
+                onclick="showSection('dashboard')">
+
+            <span>🏠</span>
+            <span>Dashboard</span>
+
+        </button>
+
+
+        <button class="nav-item"
+                onclick="showSection('report')">
+
+            <span>📝</span>
+            <span>Report Item</span>
+
+        </button>
+
+
+        <button class="nav-item"
+                onclick="showSection('lost')">
+
+            <span>🔍</span>
+            <span>Lost Items</span>
+
+        </button>
+
+
+        <button class="nav-item"
+                onclick="showSection('found')">
+
+            <span>📦</span>
+            <span>Found Items</span>
+
+        </button>
+
+
+        <button class="nav-item"
+                onclick="showSection('ai')">
+
+            <span>🤖</span>
+            <span>AI Match</span>
+
+        </button>
+
+
+        <button class="nav-item"
+                onclick="openNotifications()">
+
+            <span>🔔</span>
+            <span>Notifications</span>
+
+        </button>
+
+
+        <button class="nav-item admin-only"
+                onclick="showSection('admin')">
+
+            <span>🛠️</span>
+            <span>Admin Panel</span>
+
+        </button>
+
+    </nav>
+
+
+    <div class="sidebar-bottom">
+
+        <div class="user-profile">
+
+            <div class="avatar"
+                 id="userAvatar">
+                U
+            </div>
+
+            <div class="user-info">
+
+                <strong id="sidebarUserName">
+                    User
+                </strong>
+
+                <span id="sidebarUserRole">
+                    Student
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <button class="logout-btn"
+                onclick="logoutUser()">
+
+            🚪 Logout
+
+        </button>
+
+    </div>
+
+</aside>
+
+
+
+<!-- =========================================================
+     MAIN CONTENT
+========================================================= -->
+
+<main class="main-content">
+
+
+    <!-- =====================================================
+         DASHBOARD
+    ===================================================== -->
+
+    <section id="dashboard"
+             class="section active">
+
+        <div class="page-heading">
+
+            <div>
+
+                <h1>
+                    Welcome to CampusFind 👋
+                </h1>
+
+                <p>
+                    AI-powered campus lost and found system.
+                </p>
+
+            </div>
+
+
+            <div class="date-time"
+                 id="currentDateTime">
+            </div>
+
+        </div>
+
+
+        <!-- QUICK ACTIONS -->
+
+        <div class="quick-actions">
+
+            <button onclick="openReport('lost')">
+
+                <span>🔍</span>
+
+                <strong>
+                    Report Lost Item
+                </strong>
+
+                <small>
+                    Tell us what you lost
+                </small>
+
+            </button>
+
+
+            <button onclick="openReport('found')">
+
+                <span>📦</span>
+
+                <strong>
+                    Report Found Item
+                </strong>
+
+                <small>
+                    Help someone find it
+                </small>
+
+            </button>
+
+
+            <button onclick="showSection('ai')">
+
+                <span>🤖</span>
+
+                <strong>
+                    Find My Item
+                </strong>
+
+                <small>
+                    Use AI matching
+                </small>
+
+            </button>
+
+        </div>
+
+
+        <!-- AI BANNER -->
+
+        <div class="ai-banner">
+
+            <div class="ai-banner-icon">
+                🤖
+            </div>
+
+
+            <div class="ai-banner-content">
+
+                <h2>
+                    AI-Powered Smart Matching
+                </h2>
+
+                <p>
+                    CampusFind AI automatically compares
+                    lost and found reports to discover
+                    possible matches.
+                </p>
+
+            </div>
+
+
+            <button onclick="showSection('ai')">
+                View Matches →
+            </button>
+
+        </div>
+
+
+        <!-- RECENT REPORTS -->
+
+        <div class="section-header">
+
+            <div>
+
+                <h2>
+                    Recent Reports
+                </h2>
+
+                <p>
+                    Latest lost and found items.
+                </p>
+
+            </div>
+
+
+            <button onclick="showSection('lost')">
+                View All →
+            </button>
+
+        </div>
+
+
+        <div id="recentReports"
+             class="reports-grid">
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    📋
+                </div>
+
+                <h3>
+                    No reports yet
+                </h3>
+
+                <p>
+                    Reports will appear here.
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =====================================================
+         REPORT ITEM
+    ===================================================== -->
+
+    <section id="report"
+             class="section">
+
+        <div class="page-heading">
+
+            <h1>
+                📝 Report an Item
+            </h1>
+
+            <p>
+                Help the campus community by reporting
+                a lost or found item.
+            </p>
+
+        </div>
+
+
+        <div class="form-card">
+
+            <form id="reportForm">
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label>
+                            Item Type
+                        </label>
+
+                        <select id="item_type"
+                                name="item_type"
+                                required>
+
+                            <option value="">
+                                Select item type
+                            </option>
+
+                            <option value="lost">
+                                Lost Item
+                            </option>
+
+                            <option value="found">
+                                Found Item
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Item Name
+                        </label>
+
+                        <input type="text"
+                               id="item_name"
+                               name="item_name"
+                               placeholder="Example: Black Wallet"
+                               required>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label>
+                            Category
+                        </label>
+
+                        <select id="category"
+                                name="category"
+                                required>
+
+                            <option value="">
+                                Select category
+                            </option>
+
+                            <option value="electronics">
+                                Electronics
+                            </option>
+
+                            <option value="documents">
+                                Documents
+                            </option>
+
+                            <option value="wallet">
+                                Wallet / Money
+                            </option>
+
+                            <option value="keys">
+                                Keys
+                            </option>
+
+                            <option value="books">
+                                Books
+                            </option>
+
+                            <option value="clothing">
+                                Clothing
+                            </option>
+
+                            <option value="accessories">
+                                Accessories
+                            </option>
+
+                            <option value="other">
+                                Other
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Location
+                        </label>
+
+                        <input type="text"
+                               id="location"
+                               name="location"
+                               placeholder="Example: Library"
+                               required>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label>
+                            Date
+                        </label>
+
+                        <input type="date"
+                               id="item_date"
+                               name="item_date"
+                               required>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Time
+                        </label>
+
+                        <input type="time"
+                               id="item_time"
+                               name="item_time">
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="form-group">
+
+                    <label>
+                        Description
+                    </label>
+
+                    <textarea id="description"
+                              name="description"
+                              rows="5"
+                              placeholder="Describe the item in detail..."
+                              required></textarea>
+
+                </div>
+
+
+
+                <div class="form-group">
+
+                    <label>
+                        Upload Image
+                    </label>
+
+                    <input type="file"
+                           id="image"
+                           name="image"
+                           accept="image/*">
+
+                    <div id="imagePreview"
+                         class="image-preview">
+                    </div>
+
+                </div>
+
+
+
+                <div class="form-actions">
+
+                    <button type="button"
+                            onclick="showSection('dashboard')">
+
+                        Cancel
+
+                    </button>
+
+
+                    <button type="submit">
+
+                        Submit Report
+
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =====================================================
+         LOST ITEMS
+    ===================================================== -->
+
+    <section id="lost"
+             class="section">
+
+        <div class="page-heading">
+
+            <h1>
+                🔍 Lost Items
+            </h1>
+
+            <p>
+                Items reported lost on campus.
+            </p>
+
+        </div>
+
+
+        <div id="lostReports"
+             class="reports-grid">
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    🔍
+                </div>
+
+                <h3>
+                    No lost items
+                </h3>
+
+                <p>
+                    Lost item reports will appear here.
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =====================================================
+         FOUND ITEMS
+    ===================================================== -->
+
+    <section id="found"
+             class="section">
+
+        <div class="page-heading">
+
+            <h1>
+                📦 Found Items
+            </h1>
+
+            <p>
+                Items found on campus.
+                If this is your item, submit a claim request.
+            </p>
+
+        </div>
+
+
+        <div id="foundReports"
+             class="reports-grid">
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    📦
+                </div>
+
+                <h3>
+                    No found items
+                </h3>
+
+                <p>
+                    Found item reports will appear here.
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =====================================================
+         AI MATCH
+    ===================================================== -->
+
+    <section id="ai"
+             class="section">
+
+        <div class="page-heading">
+
+            <h1>
+                🤖 AI Match Center
+            </h1>
+
+            <p>
+                AI-powered matching between lost and found
+                reports.
+            </p>
+
+        </div>
+
+
+        <div class="ai-info-card">
+
+            <div class="ai-icon">
+                🤖
+            </div>
+
+
+            <div>
+
+                <h2>
+                    CampusFind AI
+                </h2>
+
+                <p>
+                    AI is analyzing item names,
+                    descriptions, categories and locations
+                    to identify possible matches.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div id="aiMatches"
+             class="matches-container">
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    🤖
+                </div>
+
+                <h3>
+                    No AI matches yet
+                </h3>
+
+                <p>
+                    Matching results will appear here.
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =====================================================
+         NOTIFICATIONS
+    ===================================================== -->
+
+    <section id="notifications"
+             class="section">
+
+        <div class="page-heading">
+
+            <h1>
+                🔔 Notifications
+            </h1>
+
+            <p>
+                Your CampusFind notifications.
+            </p>
+
+        </div>
+
+
+        <div id="notificationList"
+             class="notification-list">
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    🔔
+                </div>
+
+                <h3>
+                    No notifications
+                </h3>
+
+                <p>
+                    You're all caught up.
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =====================================================
+         ADMIN PANEL
+    ===================================================== -->
+
+    <section id="admin"
+             class="section">
+
+        <div class="page-heading">
+
+            <h1>
+                🛠️ Admin Panel
+            </h1>
+
+            <p>
+                Manage CampusFind reports, claims and users.
+            </p>
+
+        </div>
+
+
+
+        <!-- ADMIN STATISTICS -->
+
+        <div class="admin-stats">
+
+
+            <div class="admin-stat-card">
+
+                <span>
+                    📋
+                </span>
+
+                <div>
+
+                    <small>
+                        Total Reports
+                    </small>
+
+                    <strong id="adminTotalReports">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="admin-stat-card">
+
+                <span>
+                    🔍
+                </span>
+
+                <div>
+
+                    <small>
+                        Lost Items
+                    </small>
+
+                    <strong id="adminLostCount">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="admin-stat-card">
+
+                <span>
+                    📦
+                </span>
+
+                <div>
+
+                    <small>
+                        Found Items
+                    </small>
+
+                    <strong id="adminFoundCount">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="admin-stat-card">
+
+                <span>
+                    👥
+                </span>
+
+                <div>
+
+                    <small>
+                        Users
+                    </small>
+
+                    <strong id="adminUserCount">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ADMIN CONTROLS -->
+
+        <div class="admin-card">
+
+            <div class="admin-card-header">
+
+                <div>
+
+                    <h2>
+                        Admin Controls
+                    </h2>
+
+                    <p>
+                        Manage reports, claims and users.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="admin-actions">
+
+                <button type="button"
+                        onclick="loadAdminReports()">
+
+                    📋 View All Reports
+
+                </button>
+
+
+                <button type="button"
+                        onclick="loadAdminClaims()">
+
+                    📋 View Claim Requests
+
+                </button>
+
+
+                <button type="button"
+                        onclick="loadAdminUsers()">
+
+                    👥 Manage Users
+
+                </button>
+
+
+                <button type="button"
+                        onclick="refreshAdminStats()">
+
+                    🔄 Refresh Statistics
+
+                </button>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             ADMIN REPORTS
+        ================================================= -->
+
+        <div class="admin-card">
+
+            <div class="admin-card-header">
+
+                <div>
+
+                    <h2>
+                        Recent Reports
+                    </h2>
+
+                    <p>
+                        Review and manage submitted reports.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- STATUS FILTERS -->
+
+            <div class="admin-report-filters">
+
+                <button type="button"
+                        class="admin-filter active"
+                        data-filter="all"
+                        onclick="setAdminFilter('all', this)">
+
+                    All
+
+                </button>
+
+
+                <button type="button"
+                        class="admin-filter"
+                        data-filter="pending"
+                        onclick="setAdminFilter('pending', this)">
+
+                    🟡 Pending
+
+                </button>
+
+
+                <button type="button"
+                        class="admin-filter"
+                        data-filter="approved"
+                        onclick="setAdminFilter('approved', this)">
+
+                    🟢 Approved
+
+                </button>
+
+
+                <button type="button"
+                        class="admin-filter"
+                        data-filter="rejected"
+                        onclick="setAdminFilter('rejected', this)">
+
+                    🔴 Rejected
+
+                </button>
+
+            </div>
+
+
+
+            <div id="adminReports"
+                 class="admin-reports">
+
+                <div class="empty-state">
+
+                    <div class="empty-icon">
+                        📋
+                    </div>
+
+                    <h3>
+                        No reports loaded
+                    </h3>
+
+                    <p>
+                        Click View All Reports.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             ADMIN CLAIM REQUESTS
+        ================================================= -->
+
+        <div class="admin-card">
+
+            <div class="admin-card-header">
+
+                <div>
+
+                    <h2>
+                        📋 Claim Requests
+                    </h2>
+
+                    <p>
+                        Review claimant information, item details
+                        and AI match percentage before approving
+                        or rejecting a claim.
+                    </p>
+
+                </div>
+
+
+                <button type="button"
+                        onclick="loadAdminClaims()">
+
+                    🔄 Refresh Claims
+
+                </button>
+
+            </div>
+
+
+
+            <div id="adminClaims"
+                 class="admin-reports">
+
+                <div class="empty-state">
+
+                    <div class="empty-icon">
+                        📋
+                    </div>
+
+                    <h3>
+                        No claim requests loaded
+                    </h3>
+
+                    <p>
+                        Click Refresh Claims to view requests.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ADMIN USERS -->
+
+        <div class="admin-card">
+
+            <div class="admin-card-header">
+
+                <div>
+
+                    <h2>
+                        Registered Users
+                    </h2>
+
+                    <p>
+                        View registered campus users.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div id="adminUsers">
+
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+
+<!-- =========================================================
+     CLAIM ITEM MODAL
+========================================================= -->
+
+<div id="claimModal"
+     class="modal">
+
+    <div class="modal-content">
+
+
+        <button class="modal-close"
+                type="button"
+                onclick="closeClaimModal()">
+
+            ×
+
+        </button>
+
+
+
+        <div class="modal-header">
+
+            <div class="modal-icon">
+                📦
+            </div>
+
+            <h2>
+                Claim This Item
+            </h2>
+
+            <p>
+                Provide your details and explain why this
+                found item belongs to you.
+            </p>
+
+        </div>
+
+
+
+        <form id="claimForm">
+
+
+            <!-- REPORT ID -->
+
+            <input type="hidden"
+                   id="claimReportId"
+                   name="report_id">
+
+
+
+            <!-- ITEM NAME -->
+
+            <div class="claim-item-info">
+
+                <div class="form-group">
+
+                    <label>
+                        Found Item
+                    </label>
+
+                    <input type="text"
+                           id="claimItemName"
+                           name="item_name"
+                           readonly>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- CLAIMANT DETAILS -->
+
+            <div class="form-group">
+
+                <label>
+                    Full Name
+                </label>
+
+                <input type="text"
+                       id="claimantName"
+                       name="name"
+                       placeholder="Enter your full name"
+                       required>
+
+            </div>
+
+
+
+            <div class="form-group">
+
+                <label>
+                    Email
+                </label>
+
+                <input type="email"
+                       id="claimantEmail"
+                       name="email"
+                       placeholder="Enter your email"
+                       required>
+
+            </div>
+
+
+
+            <div class="form-group">
+
+                <label>
+                    Mobile Number
+                </label>
+
+                <input type="tel"
+                       id="claimantMobile"
+                       name="mobile"
+                       placeholder="Enter your mobile number"
+                       required>
+
+            </div>
+
+
+
+            <!-- LOST LOCATION -->
+
+            <div class="form-group">
+
+                <label>
+                    Where did you lose the item?
+                </label>
+
+                <input type="text"
+                       id="claimLostLocation"
+                       name="lost_location"
+                       placeholder="Example: Library, CSE Block, Lab"
+                       required>
+
+            </div>
+
+
+
+            <!-- ITEM IDENTIFICATION -->
+
+            <div class="form-group">
+
+                <label>
+                    Unique Identifying Details
+                </label>
+
+                <textarea id="claimItemDetails"
+                          name="item_details"
+                          rows="4"
+                          placeholder="Mention color, brand, unique marks, stickers, serial number, contents, etc."
+                          required></textarea>
+
+            </div>
+
+
+
+            <!-- CLAIM MESSAGE -->
+
+            <div class="form-group">
+
+                <label>
+                    Why do you think this is your item?
+                </label>
+
+                <textarea id="claimMessage"
+                          name="message"
+                          rows="5"
+                          placeholder="Explain specific details that can help the admin verify your claim."
+                          required></textarea>
+
+            </div>
+
+
+
+            <!-- AI VERIFICATION -->
+
+            <div class="claim-item-info">
+
+                <strong>
+                    🤖 AI Verification
+                </strong>
+
+                <p>
+                    The administrator can review your claim
+                    details along with the AI match percentage
+                    before approving or rejecting the request.
+                </p>
+
+            </div>
+
+
+
+            <!-- ACTION BUTTONS -->
+
+            <div class="form-actions">
+
+                <button type="button"
+                        onclick="closeClaimModal()">
+
+                    Cancel
+
+                </button>
+
+
+                <button type="submit"
+                        class="primary-btn">
+
+                    📤 Submit Claim
+
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+
+<!-- =========================================================
+     LOGIN MODAL
+========================================================= -->
+
+<div id="loginModal"
+     class="modal">
+
+    <div class="modal-content">
+
+
+        <button class="modal-close"
+                onclick="closeLogin()">
+
+            ×
+
+        </button>
+
+
+
+        <div class="modal-header">
+
+            <div class="modal-icon">
+                🔐
+            </div>
+
+            <h2>
+                Welcome Back
+            </h2>
+
+            <p>
+                Login to CampusFind
+            </p>
+
+        </div>
+
+
+
+        <form id="loginForm">
+
+
+            <div class="form-group">
+
+                <label>
+                    Email
+                </label>
+
+                <input type="email"
+                       id="loginEmail"
+                       name="email"
+                       placeholder="Enter your email"
+                       required>
+
+            </div>
+
+
+
+            <div class="form-group">
+
+                <label>
+                    Password
+                </label>
+
+
+                <div class="password-wrapper">
+
+                    <input type="password"
+                           id="loginPassword"
+                           name="password"
+                           placeholder="Enter your password"
+                           required>
+
+
+                    <button type="button"
+                            onclick="togglePassword('loginPassword')">
+
+                        👁️
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
+
+            <button type="submit"
+                    class="primary-btn">
+
+                Login
+
+            </button>
+
+        </form>
+
+
+
+        <div class="modal-footer">
+
+            <p>
+
+                Don't have an account?
+
+                <button type="button"
+                        onclick="showRegister()">
+
+                    Create Account
+
+                </button>
+
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- =========================================================
+     REGISTER MODAL
+========================================================= -->
+
+<div id="registerModal"
+     class="modal">
+
+    <div class="modal-content">
+
+
+        <button class="modal-close"
+                onclick="closeLogin()">
+
+            ×
+
+        </button>
+
+
+
+        <div class="modal-header">
+
+            <div class="modal-icon">
+                📝
+            </div>
+
+            <h2>
+                Create Account
+            </h2>
+
+            <p>
+                Join CampusFind
+            </p>
+
+        </div>
+
+
+
+        <form id="registerForm">
+
+
+            <!-- FULL NAME -->
+
+            <div class="form-group">
+
+                <label for="registerName">
+                    Full Name
+                </label>
+
+                <input type="text"
+                       id="registerName"
+                       name="name"
+                       placeholder="Enter your name"
+                       required>
+
+            </div>
+
+
+
+            <!-- EMAIL -->
+
+            <div class="form-group">
+
+                <label for="registerEmail">
+                    Email
+                </label>
+
+                <input type="email"
+                       id="registerEmail"
+                       name="email"
+                       placeholder="Enter your email"
+                       required>
+
+            </div>
+
+
+
+            <!-- ACCOUNT TYPE -->
+
+            <div class="form-group">
+
+                <label for="registerRole">
+                    Account Type
+                </label>
+
+                <select id="registerRole"
+                        name="role"
+                        required>
+
+                    <option value="">
+                        Select Account Type
+                    </option>
+
+                    <option value="student">
+                        🎓 Student
+                    </option>
+
+                    <option value="admin">
+                        🛠️ Admin
+                    </option>
+
+                </select>
+
+            </div>
+
+
+
+            <!-- PASSWORD -->
+
+            <div class="form-group">
+
+                <label for="registerPassword">
+                    Password
+                </label>
+
+
+                <div class="password-wrapper">
+
+                    <input type="password"
+                           id="registerPassword"
+                           name="password"
+                           placeholder="Create password"
+                           required>
+
+
+                    <button type="button"
+                            onclick="toggleRegisterPassword()">
+
+                        👁️
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
+
+            <button type="submit"
+                    class="primary-btn">
+
+                Create Account
+
+            </button>
+
+        </form>
+
+
+
+        <div class="modal-footer">
+
+            <p>
+
+                Already have an account?
+
+                <button type="button"
+                        onclick="showLogin()">
+
+                    Login
+
+                </button>
+
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- =========================================================
+     NOTIFICATION PANEL
+========================================================= -->
+
+<div id="notificationPanel"
+     class="notification-panel">
+
+
+    <div class="notification-header">
+
+        <h2>
+            🔔 Notifications
+        </h2>
+
+
+        <button type="button"
+                onclick="closeNotifications()">
+
+            ×
+
+        </button>
+
+    </div>
+
+
+
+    <div id="notificationsList">
+
+        <div class="empty-state">
+
+            <div class="empty-icon">
+                🔔
+            </div>
+
+            <h3>
+                No notifications
+            </h3>
+
+            <p>
+                You're all caught up.
+            </p>
+
+        </div>
+
+    </div>
+
+
+
+    <button class="clear-notifications"
+            onclick="clearNotifications()">
+
+        Clear Notifications
+
+    </button>
+
+</div>
+
+
+
+<!-- =========================================================
+     TOAST
+========================================================= -->
+
+<div id="toast"
+     class="toast">
+
+    <div id="toastIcon">
+        ✓
+    </div>
+
+    <div id="toastMessage">
+        Success
+    </div>
+
+</div>
+
+
+
+<!-- =========================================================
+     JAVASCRIPT
+========================================================= -->
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+</html>
