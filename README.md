@@ -1,2 +1,2 @@
 # Campus_LostFound_AI
-AI-powered Campus Lost &amp; Found system that helps students report, search, and match lost and found items using intelligent image and text analysis.
+CampusFind is an AI-powered Lost & Found platform designed for colleges and universities. It enables students to report lost or found items, upload images, search reports, and receive AI-assisted matching suggestions. Administrators can manage reports through an approval and rejection system.
