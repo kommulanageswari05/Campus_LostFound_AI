@@ -1,8 +1,3 @@
-# ============================================================
-# CAMPUSFIND - LOST & FOUND AI
-# COMPLETE FLASK + SQLITE BACKEND
-# ============================================================
-
 import os
 import sqlite3
 from pathlib import Path
@@ -11,12 +6,13 @@ from functools import wraps
 
 from flask import (
     Flask,
+    render_template,
     request,
     jsonify,
-    render_template,
     send_from_directory,
     session
 )
+
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -29,14 +25,13 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
 
-TEMPLATE_DIR = BASE_DIR / "templates"
-STATIC_DIR = BASE_DIR / "static"
-UPLOAD_FOLDER = BASE_DIR / "uploads"
-
-DATABASE = BASE_DIR / "database.db"
 ENV_FILE = BASE_DIR / ".env"
 
-UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+TEMPLATES_DIR = BASE_DIR / "templates"
+STATIC_DIR = BASE_DIR / "static"
+UPLOAD_DIR = BASE_DIR / "uploads"
+
+DATABASE = BASE_DIR / "database.db"
 
 
 # ============================================================
@@ -47,12 +42,12 @@ load_dotenv(ENV_FILE)
 
 SECRET_KEY = os.getenv(
     "SECRET_KEY",
-    "campusfind-secret-key"
+    "campusfind-secret-key-2026"
 )
 
 ADMIN_EMAIL = os.getenv(
     "ADMIN_EMAIL",
-    "admin@campusfind.ai"
+    "admin@campusfind.com"
 ).strip().lower()
 
 
@@ -62,14 +57,13 @@ ADMIN_EMAIL = os.getenv(
 
 app = Flask(
     __name__,
-    template_folder=str(TEMPLATE_DIR),
+    template_folder=str(TEMPLATES_DIR),
     static_folder=str(STATIC_DIR)
 )
 
 app.secret_key = SECRET_KEY
 
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
-app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
 
 CORS(
     app,
@@ -78,7 +72,17 @@ CORS(
 
 
 # ============================================================
-# IMAGE SETTINGS
+# UPLOAD DIRECTORY
+# ============================================================
+
+UPLOAD_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+
+# ============================================================
+# ALLOWED IMAGE TYPES
 # ============================================================
 
 ALLOWED_EXTENSIONS = {
@@ -91,6 +95,7 @@ ALLOWED_EXTENSIONS = {
 
 
 def allowed_file(filename):
+
     return (
         "." in filename
         and filename.rsplit(".", 1)[1].lower()
@@ -99,7 +104,7 @@ def allowed_file(filename):
 
 
 # ============================================================
-# DATABASE CONNECTION
+# DATABASE
 # ============================================================
 
 def get_db():
@@ -111,14 +116,19 @@ def get_db():
 
     conn.row_factory = sqlite3.Row
 
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA busy_timeout = 30000")
+    conn.execute(
+        "PRAGMA foreign_keys = ON"
+    )
+
+    conn.execute(
+        "PRAGMA busy_timeout = 30000"
+    )
 
     return conn
 
 
 # ============================================================
-# ADD COLUMN IF MISSING
+# DATABASE MIGRATION
 # ============================================================
 
 def add_column_if_missing(
@@ -132,10 +142,10 @@ def add_column_if_missing(
         f"PRAGMA table_info({table_name})"
     ).fetchall()
 
-    existing_columns = {
-        row["name"]
-        for row in columns
-    }
+    existing_columns = [
+        column["name"]
+        for column in columns
+    ]
 
     if column_name not in existing_columns:
 
@@ -144,6 +154,11 @@ def add_column_if_missing(
             ALTER TABLE {table_name}
             ADD COLUMN {column_name} {column_definition}
             """
+        )
+
+        print(
+            f"Added column {column_name} "
+            f"to {table_name}"
         )
 
 
@@ -155,208 +170,285 @@ def init_db():
 
     conn = get_db()
 
-    try:
+    # ========================================================
+    # USERS
+    # ========================================================
 
-        # ----------------------------------------------------
-        # USERS TABLE
-        # ----------------------------------------------------
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
 
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
 
-                name TEXT NOT NULL,
+            password TEXT NOT NULL,
 
-                email TEXT NOT NULL UNIQUE,
+            name TEXT,
 
-                password TEXT NOT NULL,
+            email TEXT,
 
-                role TEXT DEFAULT 'student',
+            mobile TEXT,
 
-                phone TEXT,
+            role TEXT DEFAULT 'student',
 
-                department TEXT,
+            created_at TEXT
 
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-
-            )
-        """)
-
-        # ----------------------------------------------------
-        # REPORTS TABLE
-        # ----------------------------------------------------
-
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS reports (
-
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-                user_id INTEGER,
-
-                type TEXT NOT NULL,
-
-                title TEXT NOT NULL,
-
-                description TEXT,
-
-                category TEXT,
-
-                location TEXT,
-
-                date TEXT,
-
-                image TEXT,
-
-                status TEXT DEFAULT 'pending',
-
-                approval_status TEXT DEFAULT 'pending',
-
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-
-                FOREIGN KEY(user_id)
-                    REFERENCES users(id)
-                    ON DELETE CASCADE
-
-            )
-        """)
-
-        # ----------------------------------------------------
-        # CLAIMS TABLE
-        # ----------------------------------------------------
-
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS claims (
-
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-                report_id INTEGER NOT NULL,
-
-                user_id INTEGER NOT NULL,
-
-                message TEXT,
-
-                status TEXT DEFAULT 'pending',
-
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-
-                FOREIGN KEY(report_id)
-                    REFERENCES reports(id)
-                    ON DELETE CASCADE,
-
-                FOREIGN KEY(user_id)
-                    REFERENCES users(id)
-                    ON DELETE CASCADE
-
-            )
-        """)
-
-        # ----------------------------------------------------
-        # NOTIFICATIONS TABLE
-        # ----------------------------------------------------
-
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS notifications (
-
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-                user_id INTEGER NOT NULL,
-
-                message TEXT NOT NULL,
-
-                type TEXT DEFAULT 'info',
-
-                is_read INTEGER DEFAULT 0,
-
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-
-                FOREIGN KEY(user_id)
-                    REFERENCES users(id)
-                    ON DELETE CASCADE
-
-            )
-        """)
-
-        # ----------------------------------------------------
-        # MIGRATIONS TABLE
-        # ----------------------------------------------------
-
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS migrations (
-
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-                name TEXT UNIQUE NOT NULL,
-
-                applied_at TEXT DEFAULT CURRENT_TIMESTAMP
-
-            )
-        """)
-
-        # ----------------------------------------------------
-        # EXISTING DATABASE MIGRATIONS
-        # ----------------------------------------------------
-
-        add_column_if_missing(
-            conn,
-            "users",
-            "phone",
-            "TEXT"
         )
+    """)
 
-        add_column_if_missing(
-            conn,
-            "users",
-            "department",
-            "TEXT"
+    add_column_if_missing(
+        conn,
+        "users",
+        "email",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        conn,
+        "users",
+        "name",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        conn,
+        "users",
+        "mobile",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        conn,
+        "users",
+        "role",
+        "TEXT DEFAULT 'student'"
+    )
+
+    # ========================================================
+    # REPORTS
+    # ========================================================
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS reports (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            user_id INTEGER,
+
+            report_type TEXT NOT NULL,
+
+            item_type TEXT,
+
+            item_name TEXT NOT NULL,
+
+            category TEXT,
+
+            location TEXT,
+
+            description TEXT,
+
+            image TEXT,
+
+            report_date TEXT,
+
+            report_time TEXT,
+
+            status TEXT DEFAULT 'pending',
+
+            created_at TEXT,
+
+            FOREIGN KEY(user_id)
+                REFERENCES users(id)
+                ON DELETE SET NULL
+
         )
+    """)
 
-        add_column_if_missing(
-            conn,
-            "reports",
-            "approval_status",
-            "TEXT DEFAULT 'pending'"
+    add_column_if_missing(
+        conn,
+        "reports",
+        "user_id",
+        "INTEGER"
+    )
+
+    add_column_if_missing(
+        conn,
+        "reports",
+        "status",
+        "TEXT DEFAULT 'pending'"
+    )
+
+    add_column_if_missing(
+        conn,
+        "reports",
+        "item_type",
+        "TEXT"
+    )
+
+    # ========================================================
+    # CLAIMS
+    # ========================================================
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS claims (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            report_id INTEGER NOT NULL,
+
+            user_id INTEGER NOT NULL,
+
+            claim_lost_location TEXT,
+
+            claim_item_details TEXT,
+
+            claim_reason TEXT,
+
+            message TEXT,
+
+            ai_match_score REAL DEFAULT 0,
+
+            status TEXT DEFAULT 'pending',
+
+            created_at TEXT,
+
+            FOREIGN KEY(report_id)
+                REFERENCES reports(id)
+                ON DELETE CASCADE,
+
+            FOREIGN KEY(user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE
+
         )
+    """)
 
-        # ----------------------------------------------------
-        # UNIQUE CLAIM INDEX
-        # ----------------------------------------------------
+    # --------------------------------------------------------
+    # CLAIM MIGRATION
+    # --------------------------------------------------------
 
-        conn.execute("""
-            CREATE UNIQUE INDEX IF NOT EXISTS
-            idx_claim_user_report
-            ON claims(report_id, user_id)
-        """)
+    add_column_if_missing(
+        conn,
+        "claims",
+        "claim_lost_location",
+        "TEXT"
+    )
 
-        # ----------------------------------------------------
-        # ADMIN ACCOUNT
-        # ----------------------------------------------------
+    add_column_if_missing(
+        conn,
+        "claims",
+        "claim_item_details",
+        "TEXT"
+    )
 
-        if ADMIN_EMAIL:
+    add_column_if_missing(
+        conn,
+        "claims",
+        "claim_reason",
+        "TEXT"
+    )
 
-            conn.execute(
-                """
-                UPDATE users
-                SET role = 'admin'
-                WHERE LOWER(email) = ?
-                """,
-                (ADMIN_EMAIL,)
-            )
+    add_column_if_missing(
+        conn,
+        "claims",
+        "message",
+        "TEXT"
+    )
 
-        conn.commit()
+    add_column_if_missing(
+        conn,
+        "claims",
+        "ai_match_score",
+        "REAL DEFAULT 0"
+    )
 
-        print("SQLite database initialized successfully.")
-        print("Database:", DATABASE)
+    add_column_if_missing(
+        conn,
+        "claims",
+        "status",
+        "TEXT DEFAULT 'pending'"
+    )
 
-    except Exception:
+    add_column_if_missing(
+        conn,
+        "claims",
+        "created_at",
+        "TEXT"
+    )
 
-        conn.rollback()
+    # --------------------------------------------------------
+    # ONE CLAIM PER USER PER ITEM
+    # --------------------------------------------------------
 
-        raise
+    conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS
+        idx_claim_user_report
+        ON claims(report_id, user_id)
+    """)
 
-    finally:
+    # ========================================================
+    # NOTIFICATIONS
+    # ========================================================
 
-        conn.close()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS notifications (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            user_id INTEGER NOT NULL,
+
+            title TEXT,
+
+            message TEXT,
+
+            is_read INTEGER DEFAULT 0,
+
+            created_at TEXT,
+
+            FOREIGN KEY(user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE
+
+        )
+    """)
+
+    conn.commit()
+
+    # ========================================================
+    # ADMIN SECURITY
+    # ========================================================
+
+    conn.execute(
+        """
+        UPDATE users
+        SET role = 'student'
+        WHERE LOWER(TRIM(COALESCE(email, ''))) != ?
+        """,
+        (ADMIN_EMAIL,)
+    )
+
+    conn.execute(
+        """
+        UPDATE users
+        SET role = 'admin'
+        WHERE LOWER(TRIM(COALESCE(email, ''))) = ?
+        """,
+        (ADMIN_EMAIL,)
+    )
+
+    conn.commit()
+
+    conn.close()
+
+    print(
+        "DATABASE INITIALIZED:",
+        DATABASE
+    )
+
+    print(
+        "AUTHORIZED ADMIN EMAIL:",
+        ADMIN_EMAIL
+    )
 
 
 # ============================================================
@@ -377,33 +469,6 @@ except Exception as e:
 
 
 # ============================================================
-# HELPER
-# ============================================================
-
-def normalize_report_type(value):
-
-    value = str(
-        value or ""
-    ).strip().lower()
-
-    if value in ("lost", "missing"):
-        return "lost"
-
-    if value in ("found", "recovered"):
-        return "found"
-
-    return value
-
-
-def row_to_dict(row):
-
-    if row is None:
-        return None
-
-    return dict(row)
-
-
-# ============================================================
 # CURRENT USER
 # ============================================================
 
@@ -416,50 +481,58 @@ def get_current_user():
 
     conn = get_db()
 
-    try:
+    user = conn.execute(
+        """
+        SELECT
+            id,
+            username,
+            name,
+            email,
+            mobile,
+            role,
+            created_at
+        FROM users
+        WHERE id = ?
+        """,
+        (user_id,)
+    ).fetchone()
 
-        user = conn.execute(
-            """
-            SELECT
-                id,
-                name,
-                email,
-                role,
-                phone,
-                department,
-                created_at
-            FROM users
-            WHERE id = ?
-            """,
-            (user_id,)
-        ).fetchone()
+    conn.close()
 
-        return row_to_dict(user)
+    if not user:
+        return None
 
-    finally:
-
-        conn.close()
+    return dict(user)
 
 
 # ============================================================
 # LOGIN REQUIRED
 # ============================================================
 
-def login_required(function):
+def login_required(fn):
 
-    @wraps(function)
+    @wraps(fn)
     def wrapper(*args, **kwargs):
 
-        user = get_current_user()
-
-        if not user:
+        if not session.get("logged_in"):
 
             return jsonify({
                 "success": False,
                 "message": "Please login first."
             }), 401
 
-        return function(*args, **kwargs)
+        user = get_current_user()
+
+        if not user:
+
+            session.clear()
+
+            return jsonify({
+                "success": False,
+                "message": "Invalid user session."
+            }), 401
+
+        return fn(*args, **kwargs)
 
     return wrapper
 
@@ -468,30 +541,75 @@ def login_required(function):
 # ADMIN REQUIRED
 # ============================================================
 
-def admin_required(function):
+def admin_required(fn):
 
-    @wraps(function)
+    @wraps(fn)
     def wrapper(*args, **kwargs):
 
-        user = get_current_user()
-
-        if not user:
+        if not session.get("logged_in"):
 
             return jsonify({
                 "success": False,
                 "message": "Please login first."
             }), 401
 
-        if user["role"] != "admin":
+        user = get_current_user()
+
+        if not user:
+
+            session.clear()
+
+            return jsonify({
+                "success": False,
+                "message": "Invalid user session."
+            }), 401
+
+        user_role = str(
+            user.get("role", "student")
+        ).strip().lower()
+
+        user_email = str(
+            user.get("email", "")
+        ).strip().lower()
+
+        if (
+            user_role != "admin"
+            or user_email != ADMIN_EMAIL
+        ):
 
             return jsonify({
                 "success": False,
                 "message": "Admin access required."
             }), 403
 
-        return function(*args, **kwargs)
+        return fn(*args, **kwargs)
 
     return wrapper
+
+
+# ============================================================
+# NORMALIZE REPORT TYPE
+# ============================================================
+
+def normalize_report_type(value):
+
+    value = str(
+        value or ""
+    ).strip().lower()
+
+    if value in [
+        "lost",
+        "missing"
+    ]:
+        return "lost"
+
+    if value in [
+        "found",
+        "recovered"
+    ]:
+        return "found"
+
+    return value
 
 
 # ============================================================
@@ -501,18 +619,22 @@ def admin_required(function):
 @app.route("/")
 def home():
 
-    return render_template("index.html")
+    return render_template(
+        "index.html"
+    )
 
 
 # ============================================================
-# UPLOAD IMAGE
+# UPLOADS
 # ============================================================
 
-@app.route("/uploads/<path:filename>")
-def uploads(filename):
+@app.route(
+    "/uploads/<path:filename>"
+)
+def uploaded_file(filename):
 
     return send_from_directory(
-        str(UPLOAD_FOLDER),
+        str(UPLOAD_DIR),
         filename
     )
 
@@ -521,7 +643,10 @@ def uploads(filename):
 # REGISTER
 # ============================================================
 
-@app.route("/api/register", methods=["POST"])
+@app.route(
+    "/api/register",
+    methods=["POST"]
+)
 def register():
 
     try:
@@ -542,13 +667,10 @@ def register():
             data.get("password", "")
         )
 
-        phone = str(
-            data.get("phone", "")
-        ).strip()
+        # IMPORTANT:
+        # PUBLIC REGISTRATION CAN ONLY CREATE STUDENT ACCOUNTS
 
-        department = str(
-            data.get("department", "")
-        ).strip()
+        role = "student"
 
         if not name:
 
@@ -575,76 +697,119 @@ def register():
 
             return jsonify({
                 "success": False,
-                "message": "Password must contain at least 4 characters."
+                "message":
+                    "Password must contain at least 4 characters."
             }), 400
 
         conn = get_db()
 
-        try:
+        existing = conn.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE LOWER(email) = ?
+            """,
+            (email,)
+        ).fetchone()
 
-            existing = conn.execute(
+        if existing:
+
+            conn.close()
+
+            return jsonify({
+                "success": False,
+                "message":
+                    "An account with this email already exists."
+            }), 409
+
+        base_username = (
+            email.split("@")[0]
+            .strip()
+            .replace(" ", "_")
+        )
+
+        if not base_username:
+            base_username = "user"
+
+        username = base_username
+        counter = 1
+
+        while True:
+
+            existing_username = conn.execute(
                 """
                 SELECT id
                 FROM users
-                WHERE LOWER(email) = ?
+                WHERE username = ?
                 """,
-                (email,)
+                (username,)
             ).fetchone()
 
-            if existing:
+            if not existing_username:
+                break
 
-                return jsonify({
-                    "success": False,
-                    "message": "Email already registered."
-                }), 409
-
-            role = "admin" if email == ADMIN_EMAIL else "student"
-
-            password_hash = generate_password_hash(
-                password
+            username = (
+                f"{base_username}{counter}"
             )
 
-            cursor = conn.execute(
-                """
-                INSERT INTO users
-                (
-                    name,
-                    email,
-                    password,
-                    role,
-                    phone,
-                    department
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    name,
-                    email,
-                    password_hash,
-                    role,
-                    phone,
-                    department
-                )
+            counter += 1
+
+        password_hash = generate_password_hash(
+            password
+        )
+
+        created_at = datetime.now().isoformat(
+            timespec="seconds"
+        )
+
+        cursor = conn.execute(
+            """
+            INSERT INTO users
+            (
+                username,
+                password,
+                name,
+                email,
+                mobile,
+                role,
+                created_at
             )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                password_hash,
+                name,
+                email,
+                "",
+                role,
+                created_at
+            )
+        )
 
-            conn.commit()
+        user_id = cursor.lastrowid
 
-            return jsonify({
-                "success": True,
-                "message": "Account created successfully.",
-                "user": {
-                    "id": cursor.lastrowid,
-                    "name": name,
-                    "email": email,
-                    "role": role,
-                    "phone": phone,
-                    "department": department
-                }
-            }), 201
+        conn.commit()
+        conn.close()
 
-        finally:
+        print(
+            "NEW STUDENT:",
+            email,
+            "USERNAME:",
+            username
+        )
 
-            conn.close()
+        return jsonify({
+
+            "success": True,
+
+            "message":
+                "Account created successfully.",
+
+            "user_id":
+                user_id
+
+        }), 201
 
     except Exception as e:
 
@@ -654,9 +819,15 @@ def register():
         )
 
         return jsonify({
+
             "success": False,
-            "message": "Registration failed.",
-            "error": str(e)
+
+            "message":
+                "Registration failed.",
+
+            "error":
+                str(e)
+
         }), 500
 
 
@@ -664,7 +835,10 @@ def register():
 # LOGIN
 # ============================================================
 
-@app.route("/api/login", methods=["POST"])
+@app.route(
+    "/api/login",
+    methods=["POST"]
+)
 def login():
 
     try:
@@ -674,68 +848,189 @@ def login():
         ) or {}
 
         email = str(
-            data.get("email", "")
+            data.get(
+                "email",
+                ""
+            )
         ).strip().lower()
 
+        username = str(
+            data.get(
+                "username",
+                ""
+            )
+        ).strip()
+
         password = str(
-            data.get("password", "")
+            data.get(
+                "password",
+                ""
+            )
         )
 
-        if not email or not password:
+        login_value = (
+            email
+            or username
+        )
+
+        if not login_value or not password:
 
             return jsonify({
                 "success": False,
-                "message": "Email and password are required."
+                "message":
+                    "Email and password are required."
             }), 400
 
         conn = get_db()
 
-        try:
+        user = conn.execute(
+            """
+            SELECT
+                id,
+                username,
+                password,
+                name,
+                email,
+                mobile,
+                role,
+                created_at
+            FROM users
+            WHERE LOWER(email) = ?
+               OR username = ?
+            LIMIT 1
+            """,
+            (
+                login_value.lower(),
+                login_value
+            )
+        ).fetchone()
 
-            user = conn.execute(
-                """
-                SELECT *
-                FROM users
-                WHERE LOWER(email) = ?
-                """,
-                (email,)
-            ).fetchone()
-
-            if not user:
-
-                return jsonify({
-                    "success": False,
-                    "message": "Invalid email or password."
-                }), 401
-
-            if not check_password_hash(
-                user["password"],
-                password
-            ):
-
-                return jsonify({
-                    "success": False,
-                    "message": "Invalid email or password."
-                }), 401
-
-            session["user_id"] = user["id"]
-
-            return jsonify({
-                "success": True,
-                "message": "Login successful.",
-                "user": {
-                    "id": user["id"],
-                    "name": user["name"],
-                    "email": user["email"],
-                    "role": user["role"],
-                    "phone": user["phone"],
-                    "department": user["department"]
-                }
-            })
-
-        finally:
+        if not user:
 
             conn.close()
+
+            return jsonify({
+                "success": False,
+                "message":
+                    "Invalid email or password."
+            }), 401
+
+        stored_password = user["password"]
+
+        password_valid = False
+
+        try:
+
+            password_valid = check_password_hash(
+                stored_password,
+                password
+            )
+
+        except Exception:
+
+            password_valid = (
+                stored_password == password
+            )
+
+        if not password_valid:
+
+            conn.close()
+
+            return jsonify({
+                "success": False,
+                "message":
+                    "Invalid email or password."
+            }), 401
+
+        user_email = str(
+            user["email"] or ""
+        ).strip().lower()
+
+        if user_email == ADMIN_EMAIL:
+
+            actual_role = "admin"
+
+            conn.execute(
+                """
+                UPDATE users
+                SET role = 'admin'
+                WHERE id = ?
+                """,
+                (user["id"],)
+            )
+
+        else:
+
+            actual_role = "student"
+
+            conn.execute(
+                """
+                UPDATE users
+                SET role = 'student'
+                WHERE id = ?
+                """,
+                (user["id"],)
+            )
+
+        conn.commit()
+
+        session.clear()
+
+        session["logged_in"] = True
+        session["user_id"] = user["id"]
+        session["username"] = user["username"]
+        session["role"] = actual_role
+
+        user_data = {
+
+            "id":
+                user["id"],
+
+            "username":
+                user["username"],
+
+            "name":
+                user["name"]
+                or user["username"],
+
+            "email":
+                user["email"]
+                or "",
+
+            "mobile":
+                user["mobile"]
+                or "",
+
+            "role":
+                actual_role,
+
+            "created_at":
+                user["created_at"]
+                or ""
+        }
+
+        conn.close()
+
+        print(
+            "LOGIN SUCCESS:",
+            user_data["email"],
+            "ROLE:",
+            actual_role
+        )
+
+        return jsonify({
+
+            "success": True,
+
+            "logged_in": True,
+
+            "message":
+                "Login successful.",
+
+            "user":
+                user_data
+
+        }), 200
 
     except Exception as e:
 
@@ -745,9 +1040,15 @@ def login():
         )
 
         return jsonify({
+
             "success": False,
-            "message": "Login failed.",
-            "error": str(e)
+
+            "message":
+                "Login failed.",
+
+            "error":
+                str(e)
+
         }), 500
 
 
@@ -755,95 +1056,207 @@ def login():
 # CURRENT USER
 # ============================================================
 
-@app.route("/api/me")
+@app.route(
+    "/api/me",
+    methods=["GET"]
+)
 def me():
 
-    user = get_current_user()
+    try:
 
-    return jsonify({
-        "success": True,
-        "logged_in": user is not None,
-        "user": user
-    })
+        user = get_current_user()
+
+        if not user:
+
+            return jsonify({
+
+                "success": True,
+
+                "logged_in": False,
+
+                "user": None
+
+            }), 200
+
+        user_email = str(
+            user.get("email", "")
+        ).strip().lower()
+
+        actual_role = (
+            "admin"
+            if user_email == ADMIN_EMAIL
+            else "student"
+        )
+
+        return jsonify({
+
+            "success": True,
+
+            "logged_in": True,
+
+            "user": {
+                **user,
+                "role": actual_role
+            },
+
+            "username":
+                user["username"],
+
+            "user_id":
+                user["id"],
+
+            "role":
+                actual_role
+
+        }), 200
+
+    except Exception as e:
+
+        return jsonify({
+
+            "success": False,
+
+            "message":
+                str(e)
+
+        }), 500
 
 
 # ============================================================
 # LOGOUT
 # ============================================================
 
-@app.route("/api/logout", methods=["POST"])
+@app.route(
+    "/api/logout",
+    methods=["POST"]
+)
 def logout():
 
-    print(
-        "LOGOUT:",
-        session.get("user_id")
+    username = session.get(
+        "username"
     )
 
     session.clear()
 
+    print(
+        "LOGOUT:",
+        username
+    )
+
     return jsonify({
+
         "success": True,
-        "message": "Logged out successfully."
-    })
+
+        "message":
+            "Logged out successfully."
+
+    }), 200
 
 
 # ============================================================
-# CREATE LOST / FOUND REPORT
+# CREATE REPORT
 # ============================================================
 
-@app.route("/api/reports", methods=["POST"])
+@app.route(
+    "/api/reports",
+    methods=["POST"]
+)
 @login_required
 def create_report():
 
     try:
 
-        user = get_current_user()
-
         report_type = normalize_report_type(
-            request.form.get("type")
-            or request.form.get("report_type")
+            request.form.get(
+                "report_type"
+            )
+            or request.form.get(
+                "item_type"
+            )
         )
 
-        title = str(
-            request.form.get("title", "")
-        ).strip()
+        item_type = normalize_report_type(
+            request.form.get(
+                "item_type"
+            )
+        )
 
-        description = str(
-            request.form.get("description", "")
+        item_name = str(
+            request.form.get(
+                "item_name",
+                ""
+            )
         ).strip()
 
         category = str(
-            request.form.get("category", "")
+            request.form.get(
+                "category",
+                ""
+            )
         ).strip()
 
         location = str(
-            request.form.get("location", "")
+            request.form.get(
+                "location",
+                ""
+            )
         ).strip()
 
-        date = str(
-            request.form.get("date", "")
+        description = str(
+            request.form.get(
+                "description",
+                ""
+            )
         ).strip()
 
-        if report_type not in (
+        report_date = str(
+            request.form.get(
+                "item_date",
+                ""
+            )
+        ).strip()
+
+        report_time = str(
+            request.form.get(
+                "item_time",
+                ""
+            )
+        ).strip()
+
+        if report_type not in {
             "lost",
             "found"
-        ):
+        }:
 
             return jsonify({
+
                 "success": False,
-                "message": "Type must be lost or found."
+
+                "message":
+                    "Report type must be Lost or Found."
+
             }), 400
 
-        if not title:
+        if not item_name:
 
             return jsonify({
+
                 "success": False,
-                "message": "Item title is required."
+
+                "message":
+                    "Item name is required."
+
             }), 400
 
-        image_filename = None
+        # ----------------------------------------------------
+        # IMAGE
+        # ----------------------------------------------------
 
-        image = request.files.get("image")
+        image_filename = ""
+
+        image = request.files.get(
+            "image"
+        )
 
         if image and image.filename:
 
@@ -852,11 +1265,15 @@ def create_report():
             ):
 
                 return jsonify({
+
                     "success": False,
-                    "message": "Invalid image format."
+
+                    "message":
+                        "Only PNG, JPG, JPEG, GIF and WEBP images are allowed."
+
                 }), 400
 
-            filename = secure_filename(
+            original_name = secure_filename(
                 image.filename
             )
 
@@ -865,128 +1282,238 @@ def create_report():
             )
 
             image_filename = (
-                f"{timestamp}_{filename}"
+                f"{timestamp}_"
+                f"{session['user_id']}_"
+                f"{original_name}"
             )
 
             image.save(
                 str(
-                    UPLOAD_FOLDER /
+                    UPLOAD_DIR /
                     image_filename
                 )
             )
 
+        created_at = datetime.now().isoformat(
+            timespec="seconds"
+        )
+
         conn = get_db()
 
-        try:
+        cursor = conn.execute(
+            """
+            INSERT INTO reports
+            (
+                user_id,
+                report_type,
+                item_type,
+                item_name,
+                category,
+                location,
+                description,
+                image,
+                report_date,
+                report_time,
+                status,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                session["user_id"],
+                report_type,
+                item_type,
+                item_name,
+                category,
+                location,
+                description,
+                image_filename,
+                report_date,
+                report_time,
+                "pending",
+                created_at
+            )
+        )
 
-            cursor = conn.execute(
+        report_id = cursor.lastrowid
+
+        # ----------------------------------------------------
+        # NOTIFY ADMIN
+        # ----------------------------------------------------
+
+        admin = conn.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE LOWER(TRIM(email)) = ?
+            LIMIT 1
+            """,
+            (ADMIN_EMAIL,)
+        ).fetchone()
+
+        if admin:
+
+            conn.execute(
                 """
-                INSERT INTO reports
+                INSERT INTO notifications
                 (
                     user_id,
-                    type,
                     title,
-                    description,
-                    category,
-                    location,
-                    date,
-                    image,
-                    status,
-                    approval_status
+                    message,
+                    is_read,
+                    created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?)
                 """,
                 (
-                    user["id"],
-                    report_type,
-                    title,
-                    description,
-                    category,
-                    location,
-                    date,
-                    image_filename,
-                    "pending",
-                    "pending"
+                    admin["id"],
+                    "New Report Submitted",
+                    (
+                        f"New {report_type} report: "
+                        f"{item_name}"
+                    ),
+                    0,
+                    created_at
                 )
             )
 
-            conn.commit()
+        conn.commit()
+        conn.close()
 
-            return jsonify({
-                "success": True,
-                "message": "Report submitted successfully.",
-                "report_id": cursor.lastrowid
-            }), 201
+        print(
+            "NEW REPORT:",
+            report_id
+        )
 
-        finally:
+        return jsonify({
 
-            conn.close()
+            "success": True,
+
+            "message":
+                "Report submitted successfully.",
+
+            "report_id":
+                report_id
+
+        }), 201
 
     except Exception as e:
 
         print(
-            "REPORT ERROR:",
+            "CREATE REPORT ERROR:",
             repr(e)
         )
 
         return jsonify({
+
             "success": False,
-            "message": "Could not create report.",
-            "error": str(e)
+
+            "message":
+                "Could not create report.",
+
+            "error":
+                str(e)
+
         }), 500
 
 
 # ============================================================
-# GET PUBLIC REPORTS
+# GET REPORTS
 # ============================================================
 
-@app.route("/api/reports", methods=["GET"])
+@app.route(
+    "/api/reports",
+    methods=["GET"]
+)
 def get_reports():
 
     try:
 
         conn = get_db()
 
-        try:
+        rows = conn.execute(
+            """
+            SELECT
+                r.id,
+                r.user_id,
+                r.report_type,
+                r.item_type,
+                r.item_name,
+                r.category,
+                r.location,
+                r.description,
+                r.image,
+                r.report_date,
+                r.report_time,
+                r.status,
+                r.created_at,
 
-            rows = conn.execute(
-                """
-                SELECT
-                    r.*,
-                    u.name AS user_name,
-                    u.email AS user_email
-                FROM reports r
-                LEFT JOIN users u
-                    ON r.user_id = u.id
-                WHERE
-                    r.approval_status = 'approved'
-                    OR r.approval_status IS NULL
-                ORDER BY r.id DESC
-                """
-            ).fetchall()
+                u.name AS user_name,
+                u.username AS username,
+                u.email AS user_email
 
-            reports = []
+            FROM reports r
 
-            for row in rows:
+            LEFT JOIN users u
+                ON u.id = r.user_id
 
-                item = dict(row)
+            ORDER BY r.id DESC
+            """
+        ).fetchall()
 
-                item["image_url"] = (
-                    "/uploads/" + item["image"]
-                    if item.get("image")
-                    else None
+        conn.close()
+
+        reports = []
+
+        for row in rows:
+
+            report = dict(row)
+
+            image_url = ""
+
+            if report.get("image"):
+
+                image_url = (
+                    "/uploads/"
+                    + report["image"]
                 )
 
-                reports.append(item)
+            report["image_url"] = image_url
 
-            return jsonify({
-                "success": True,
-                "reports": reports
-            })
+            report["date"] = (
+                report.get("report_date")
+                or ""
+            )
 
-        finally:
+            report["time"] = (
+                report.get("report_time")
+                or ""
+            )
 
-            conn.close()
+            report["item_date"] = (
+                report.get("report_date")
+                or ""
+            )
+
+            report["item_time"] = (
+                report.get("report_time")
+                or ""
+            )
+
+            report["image"] = image_url
+
+            reports.append(
+                report
+            )
+
+        return jsonify({
+
+            "success": True,
+
+            "reports":
+                reports
+
+        }), 200
 
     except Exception as e:
 
@@ -996,213 +1523,41 @@ def get_reports():
         )
 
         return jsonify({
+
             "success": False,
-            "message": "Could not load reports.",
-            "error": str(e)
+
+            "message":
+                "Could not load reports.",
+
+            "reports": [],
+
+            "error":
+                str(e)
+
         }), 500
 
 
 # ============================================================
-# ADMIN - ALL REPORTS
-# ============================================================
-
-@app.route("/api/admin/reports")
-@admin_required
-def admin_reports():
-
-    try:
-
-        conn = get_db()
-
-        try:
-
-            rows = conn.execute(
-                """
-                SELECT
-                    r.*,
-                    u.name AS user_name,
-                    u.email AS user_email
-                FROM reports r
-                LEFT JOIN users u
-                    ON r.user_id = u.id
-                ORDER BY r.id DESC
-                """
-            ).fetchall()
-
-            reports = []
-
-            for row in rows:
-
-                item = dict(row)
-
-                item["image_url"] = (
-                    "/uploads/" + item["image"]
-                    if item.get("image")
-                    else None
-                )
-
-                reports.append(item)
-
-            return jsonify({
-                "success": True,
-                "reports": reports
-            })
-
-        finally:
-
-            conn.close()
-
-    except Exception as e:
-
-        print(
-            "ADMIN REPORT ERROR:",
-            repr(e)
-        )
-
-        return jsonify({
-            "success": False,
-            "message": "Could not load admin reports.",
-            "error": str(e)
-        }), 500
-
-
-# ============================================================
-# ADMIN APPROVE / REJECT REPORT
+# ADMIN REPORTS
 # ============================================================
 
 @app.route(
-    "/api/admin/reports/<int:report_id>",
-    methods=["PUT", "PATCH", "POST"]
+    "/api/admin/reports",
+    methods=["GET"]
 )
 @admin_required
-def admin_update_report(report_id):
+def get_admin_reports():
 
-    try:
-
-        data = request.get_json(
-            silent=True
-        ) or {}
-
-        action = str(
-            data.get("action")
-            or data.get("status")
-            or ""
-        ).strip().lower()
-
-        if action in (
-            "approve",
-            "approved"
-        ):
-
-            new_status = "approved"
-
-        elif action in (
-            "reject",
-            "rejected"
-        ):
-
-            new_status = "rejected"
-
-        else:
-
-            return jsonify({
-                "success": False,
-                "message": "Action must be approve or reject."
-            }), 400
-
-        conn = get_db()
-
-        try:
-
-            report = conn.execute(
-                """
-                SELECT
-                    id,
-                    user_id,
-                    title
-                FROM reports
-                WHERE id = ?
-                """,
-                (report_id,)
-            ).fetchone()
-
-            if not report:
-
-                return jsonify({
-                    "success": False,
-                    "message": "Report not found."
-                }), 404
-
-            conn.execute(
-                """
-                UPDATE reports
-                SET
-                    status = ?,
-                    approval_status = ?
-                WHERE id = ?
-                """,
-                (
-                    new_status,
-                    new_status,
-                    report_id
-                )
-            )
-
-            conn.execute(
-                """
-                INSERT INTO notifications
-                (
-                    user_id,
-                    message,
-                    type
-                )
-                VALUES (?, ?, ?)
-                """,
-                (
-                    report["user_id"],
-                    (
-                        f"Your report "
-                        f"'{report['title']}' "
-                        f"was {new_status} by admin."
-                    ),
-                    new_status
-                )
-            )
-
-            conn.commit()
-
-            return jsonify({
-                "success": True,
-                "message": (
-                    f"Report {new_status} successfully."
-                )
-            })
-
-        finally:
-
-            conn.close()
-
-    except Exception as e:
-
-        print(
-            "ADMIN APPROVE/REJECT ERROR:",
-            repr(e)
-        )
-
-        return jsonify({
-            "success": False,
-            "message": "Could not update report.",
-            "error": str(e)
-        }), 500
+    return get_reports()
 
 
 # ============================================================
-# REPORT STATUS
+# UPDATE REPORT STATUS
 # ============================================================
 
 @app.route(
     "/api/reports/<int:report_id>/status",
-    methods=["PUT", "PATCH", "POST"]
+    methods=["PUT", "POST", "PATCH"]
 )
 @admin_required
 def update_report_status(report_id):
@@ -1214,68 +1569,76 @@ def update_report_status(report_id):
         ) or {}
 
         status = str(
-            data.get("status", "")
+            data.get(
+                "status",
+                ""
+            )
         ).strip().lower()
 
-        allowed = {
+        allowed_statuses = {
             "pending",
             "approved",
             "rejected",
-            "resolved",
-            "claimed"
+            "resolved"
         }
 
-        if status not in allowed:
+        if status not in allowed_statuses:
 
             return jsonify({
+
                 "success": False,
-                "message": "Invalid status."
+
+                "message":
+                    "Invalid report status."
+
             }), 400
 
         conn = get_db()
 
-        try:
-
-            report = conn.execute(
-                """
-                SELECT
-                    user_id,
-                    title
-                FROM reports
-                WHERE id = ?
-                """,
-                (report_id,)
-            ).fetchone()
-
-            if not report:
-
-                return jsonify({
-                    "success": False,
-                    "message": "Report not found."
-                }), 404
-
-            approval_status = (
+        report = conn.execute(
+            """
+            SELECT
+                id,
+                item_name,
+                user_id,
                 status
-                if status in (
-                    "approved",
-                    "rejected"
-                )
-                else "approved"
-            )
+            FROM reports
+            WHERE id = ?
+            """,
+            (report_id,)
+        ).fetchone()
 
-            conn.execute(
-                """
-                UPDATE reports
-                SET
-                    status = ?,
-                    approval_status = ?
-                WHERE id = ?
-                """,
-                (
-                    status,
-                    approval_status,
-                    report_id
-                )
+        if not report:
+
+            conn.close()
+
+            return jsonify({
+
+                "success": False,
+
+                "message":
+                    "Report not found."
+
+            }), 404
+
+        old_status = report["status"]
+
+        conn.execute(
+            """
+            UPDATE reports
+            SET status = ?
+            WHERE id = ?
+            """,
+            (
+                status,
+                report_id
+            )
+        )
+
+        if report["user_id"]:
+
+            created_at = datetime.now().isoformat(
+                timespec="seconds"
             )
 
             conn.execute(
@@ -1283,99 +1646,145 @@ def update_report_status(report_id):
                 INSERT INTO notifications
                 (
                     user_id,
+                    title,
                     message,
-                    type
+                    is_read,
+                    created_at
                 )
-                VALUES (?, ?, ?)
+                VALUES (?, ?, ?, ?, ?)
                 """,
                 (
                     report["user_id"],
+                    "Report Status Updated",
                     (
                         f"Your report "
-                        f"'{report['title']}' "
-                        f"has been {status}."
+                        f"'{report['item_name']}' "
+                        f"is now {status}."
                     ),
-                    status
+                    0,
+                    created_at
                 )
             )
 
-            conn.commit()
+        conn.commit()
+        conn.close()
 
-            return jsonify({
-                "success": True,
-                "message": "Report status updated."
-            })
+        print(
+            "REPORT STATUS UPDATED:",
+            report_id,
+            old_status,
+            "->",
+            status
+        )
 
-        finally:
+        return jsonify({
 
-            conn.close()
+            "success": True,
+
+            "message":
+                f"Report {status} successfully.",
+
+            "report_id":
+                report_id,
+
+            "status":
+                status
+
+        }), 200
 
     except Exception as e:
 
         print(
-            "STATUS ERROR:",
+            "UPDATE REPORT ERROR:",
             repr(e)
         )
 
         return jsonify({
+
             "success": False,
-            "message": "Could not update status.",
-            "error": str(e)
+
+            "message":
+                "Could not update report.",
+
+            "error":
+                str(e)
+
         }), 500
+
+
+# ============================================================
+# SECOND ADMIN REPORT URL
+# ============================================================
+
+@app.route(
+    "/api/admin/reports/<int:report_id>",
+    methods=["PUT", "POST", "PATCH"]
+)
+@admin_required
+def update_admin_report_status(report_id):
+
+    return update_report_status(
+        report_id
+    )
 
 
 # ============================================================
 # ADMIN USERS
 # ============================================================
 
-@app.route("/api/admin/users")
+@app.route(
+    "/api/admin/users",
+    methods=["GET"]
+)
 @admin_required
-def admin_users():
+def get_admin_users():
 
     try:
 
         conn = get_db()
 
-        try:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                username,
+                name,
+                email,
+                mobile,
+                role,
+                created_at
+            FROM users
+            ORDER BY id DESC
+            """
+        ).fetchall()
 
-            rows = conn.execute(
-                """
-                SELECT
-                    id,
-                    name,
-                    email,
-                    role,
-                    phone,
-                    department,
-                    created_at
-                FROM users
-                ORDER BY id DESC
-                """
-            ).fetchall()
+        conn.close()
 
-            return jsonify({
-                "success": True,
-                "users": [
-                    dict(row)
-                    for row in rows
-                ]
-            })
+        users = [
+            dict(row)
+            for row in rows
+        ]
 
-        finally:
+        return jsonify({
 
-            conn.close()
+            "success": True,
+
+            "users":
+                users
+
+        }), 200
 
     except Exception as e:
 
-        print(
-            "ADMIN USERS ERROR:",
-            repr(e)
-        )
-
         return jsonify({
+
             "success": False,
-            "message": "Could not load users.",
-            "error": str(e)
+
+            "users": [],
+
+            "error":
+                str(e)
+
         }), 500
 
 
@@ -1383,62 +1792,73 @@ def admin_users():
 # USERS
 # ============================================================
 
-@app.route("/api/users")
-@login_required
+@app.route(
+    "/api/users",
+    methods=["GET"]
+)
+@admin_required
 def get_users():
 
     try:
 
         conn = get_db()
 
-        try:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                username,
+                name,
+                email,
+                mobile,
+                role,
+                created_at
+            FROM users
+            ORDER BY id DESC
+            """
+        ).fetchall()
 
-            rows = conn.execute(
-                """
-                SELECT
-                    id,
-                    name,
-                    email,
-                    role,
-                    phone,
-                    department,
-                    created_at
-                FROM users
-                ORDER BY id DESC
-                """
-            ).fetchall()
+        conn.close()
 
-            return jsonify({
-                "success": True,
-                "users": [
-                    dict(row)
-                    for row in rows
-                ]
-            })
+        users = [
+            dict(row)
+            for row in rows
+        ]
 
-        finally:
+        return jsonify({
 
-            conn.close()
+            "success": True,
+
+            "users":
+                users
+
+        }), 200
 
     except Exception as e:
 
-        print(
-            "USERS ERROR:",
-            repr(e)
-        )
-
         return jsonify({
+
             "success": False,
-            "message": "Could not load users.",
-            "error": str(e)
+
+            "users": [],
+
+            "message":
+                "Could not load users.",
+
+            "error":
+                str(e)
+
         }), 500
 
 
 # ============================================================
-# ADMIN STATISTICS
+# ADMIN STATS
 # ============================================================
 
-@app.route("/api/admin/stats")
+@app.route(
+    "/api/admin/stats",
+    methods=["GET"]
+)
 @admin_required
 def admin_stats():
 
@@ -1446,89 +1866,78 @@ def admin_stats():
 
         conn = get_db()
 
-        try:
+        total_reports = conn.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM reports
+            """
+        ).fetchone()["count"]
 
-            total_users = conn.execute(
-                "SELECT COUNT(*) AS count FROM users"
-            ).fetchone()["count"]
+        lost_count = conn.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM reports
+            WHERE report_type = 'lost'
+            """
+        ).fetchone()["count"]
 
-            total_reports = conn.execute(
-                "SELECT COUNT(*) AS count FROM reports"
-            ).fetchone()["count"]
+        found_count = conn.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM reports
+            WHERE report_type = 'found'
+            """
+        ).fetchone()["count"]
 
-            lost_items = conn.execute(
-                """
-                SELECT COUNT(*) AS count
-                FROM reports
-                WHERE type = 'lost'
-                """
-            ).fetchone()["count"]
+        user_count = conn.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM users
+            """
+        ).fetchone()["count"]
 
-            found_items = conn.execute(
-                """
-                SELECT COUNT(*) AS count
-                FROM reports
-                WHERE type = 'found'
-                """
-            ).fetchone()["count"]
+        conn.close()
 
-            pending_reports = conn.execute(
-                """
-                SELECT COUNT(*) AS count
-                FROM reports
-                WHERE approval_status = 'pending'
-                """
-            ).fetchone()["count"]
+        return jsonify({
 
-            approved_reports = conn.execute(
-                """
-                SELECT COUNT(*) AS count
-                FROM reports
-                WHERE approval_status = 'approved'
-                """
-            ).fetchone()["count"]
+            "success": True,
 
-            rejected_reports = conn.execute(
-                """
-                SELECT COUNT(*) AS count
-                FROM reports
-                WHERE approval_status = 'rejected'
-                """
-            ).fetchone()["count"]
+            "total_reports":
+                total_reports,
 
-            total_claims = conn.execute(
-                "SELECT COUNT(*) AS count FROM claims"
-            ).fetchone()["count"]
+            "lost_count":
+                lost_count,
 
-            return jsonify({
-                "success": True,
-                "stats": {
-                    "total_users": total_users,
-                    "total_reports": total_reports,
-                    "lost_items": lost_items,
-                    "found_items": found_items,
-                    "pending_reports": pending_reports,
-                    "approved_reports": approved_reports,
-                    "rejected_reports": rejected_reports,
-                    "total_claims": total_claims
-                }
-            })
+            "found_count":
+                found_count,
 
-        finally:
+            "user_count":
+                user_count
 
-            conn.close()
+        }), 200
 
     except Exception as e:
 
         print(
-            "STATS ERROR:",
+            "ADMIN STATS ERROR:",
             repr(e)
         )
 
         return jsonify({
+
             "success": False,
-            "message": "Could not load statistics.",
-            "error": str(e)
+
+            "total_reports": 0,
+
+            "lost_count": 0,
+
+            "found_count": 0,
+
+            "user_count": 0,
+
+            "error":
+                str(e)
+
         }), 500
 
 
@@ -1536,211 +1945,582 @@ def admin_stats():
 # CREATE CLAIM
 # ============================================================
 
-@app.route("/api/claims", methods=["POST"])
+@app.route(
+    "/api/claims",
+    methods=["POST"]
+)
 @login_required
 def create_claim():
 
     try:
 
-        user = get_current_user()
-
         data = request.get_json(
             silent=True
         ) or {}
 
-        report_id = data.get("report_id")
+        report_id = data.get(
+            "report_id"
+        )
 
-        message = str(
-            data.get("message", "")
+        claim_lost_location = str(
+            data.get(
+                "claim_lost_location",
+                ""
+            )
+        ).strip()
+
+        claim_item_details = str(
+            data.get(
+                "claim_item_details",
+                ""
+            )
+        ).strip()
+
+        claim_reason = str(
+            data.get(
+                "claim_reason",
+                ""
+            )
         ).strip()
 
         if not report_id:
 
             return jsonify({
+
                 "success": False,
-                "message": "Report ID is required."
+
+                "message":
+                    "Report ID is required."
+
+            }), 400
+
+        if not claim_lost_location:
+
+            return jsonify({
+
+                "success": False,
+
+                "message":
+                    "Please enter where you lost the item."
+
+            }), 400
+
+        if not claim_item_details:
+
+            return jsonify({
+
+                "success": False,
+
+                "message":
+                    "Please enter unique identifying details."
+
+            }), 400
+
+        if not claim_reason:
+
+            return jsonify({
+
+                "success": False,
+
+                "message":
+                    "Please explain why you think this is your item."
+
             }), 400
 
         conn = get_db()
 
-        try:
+        report = conn.execute(
+            """
+            SELECT
+                id,
+                user_id,
+                item_name,
+                item_type,
+                report_type,
+                category,
+                location,
+                description
+            FROM reports
+            WHERE id = ?
+            """,
+            (report_id,)
+        ).fetchone()
 
-            report = conn.execute(
+        if not report:
+
+            conn.close()
+
+            return jsonify({
+
+                "success": False,
+
+                "message":
+                    "Report not found."
+
+            }), 404
+
+        report_type = normalize_report_type(
+            report["report_type"]
+        )
+
+        if report_type != "found":
+
+            conn.close()
+
+            return jsonify({
+
+                "success": False,
+
+                "message":
+                    "Only found items can be claimed."
+
+            }), 400
+
+        if (
+            report["user_id"]
+            == session["user_id"]
+        ):
+
+            conn.close()
+
+            return jsonify({
+
+                "success": False,
+
+                "message":
+                    "You cannot claim your own report."
+
+            }), 400
+
+        existing = conn.execute(
+            """
+            SELECT
+                id,
+                status
+            FROM claims
+            WHERE report_id = ?
+              AND user_id = ?
+            """,
+            (
+                report_id,
+                session["user_id"]
+            )
+        ).fetchone()
+
+        if existing:
+
+            conn.close()
+
+            return jsonify({
+
+                "success": False,
+
+                "message":
+                    "You already submitted a claim for this item."
+
+            }), 409
+
+        # ----------------------------------------------------
+        # CLAIM AI MATCH
+        # ----------------------------------------------------
+
+        claim_text = (
+            claim_lost_location
+            + " "
+            + claim_item_details
+            + " "
+            + claim_reason
+        ).lower()
+
+        found_text = (
+            str(report["item_name"] or "")
+            + " "
+            + str(report["category"] or "")
+            + " "
+            + str(report["location"] or "")
+            + " "
+            + str(report["description"] or "")
+        ).lower()
+
+        claim_words = set(
+            claim_text.split()
+        )
+
+        found_words = set(
+            found_text.split()
+        )
+
+        ignored_words = {
+            "the",
+            "and",
+            "or",
+            "is",
+            "my",
+            "a",
+            "an",
+            "this",
+            "that",
+            "was",
+            "in",
+            "at",
+            "to",
+            "of",
+            "on",
+            "with",
+            "for"
+        }
+
+        common_words = (
+            claim_words
+            & found_words
+        )
+
+        meaningful_common_words = {
+            word
+            for word in common_words
+            if len(word) >= 3
+            and word not in ignored_words
+        }
+
+        ai_score = min(
+            len(meaningful_common_words) * 10,
+            100
+        )
+
+        item_name = str(
+            report["item_name"] or ""
+        ).lower()
+
+        category = str(
+            report["category"] or ""
+        ).lower()
+
+        location = str(
+            report["location"] or ""
+        ).lower()
+
+        if (
+            item_name
+            and item_name in claim_text
+        ):
+            ai_score += 30
+
+        if (
+            category
+            and category in claim_text
+        ):
+            ai_score += 15
+
+        if (
+            location
+            and location in claim_text
+        ):
+            ai_score += 15
+
+        ai_score = min(
+            ai_score,
+            100
+        )
+
+        # ----------------------------------------------------
+        # COMBINED MESSAGE
+        # ----------------------------------------------------
+
+        message = (
+            "Where did you lose the item:\n"
+            + claim_lost_location
+            + "\n\n"
+            "Unique Identifying Details:\n"
+            + claim_item_details
+            + "\n\n"
+            "Why do you think this is your item:\n"
+            + claim_reason
+        )
+
+        created_at = datetime.now().isoformat(
+            timespec="seconds"
+        )
+
+        cursor = conn.execute(
+            """
+            INSERT INTO claims
+            (
+                report_id,
+                user_id,
+                claim_lost_location,
+                claim_item_details,
+                claim_reason,
+                message,
+                ai_match_score,
+                status,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                report_id,
+                session["user_id"],
+                claim_lost_location,
+                claim_item_details,
+                claim_reason,
+                message,
+                ai_score,
+                "pending",
+                created_at
+            )
+        )
+
+        claim_id = cursor.lastrowid
+
+        # ----------------------------------------------------
+        # FIND ADMIN
+        # ----------------------------------------------------
+
+        admin = conn.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE LOWER(TRIM(email)) = ?
+            LIMIT 1
+            """,
+            (ADMIN_EMAIL,)
+        ).fetchone()
+
+        # ----------------------------------------------------
+        # ADMIN NOTIFICATION
+        # ----------------------------------------------------
+
+        if admin:
+
+            conn.execute(
                 """
-                SELECT *
-                FROM reports
-                WHERE id = ?
-                """,
-                (report_id,)
-            ).fetchone()
-
-            if not report:
-
-                return jsonify({
-                    "success": False,
-                    "message": "Report not found."
-                }), 404
-
-            existing = conn.execute(
-                """
-                SELECT id
-                FROM claims
-                WHERE report_id = ?
-                AND user_id = ?
-                """,
+                INSERT INTO notifications
                 (
-                    report_id,
-                    user["id"]
-                )
-            ).fetchone()
-
-            if existing:
-
-                return jsonify({
-                    "success": False,
-                    "message": "You already submitted a claim."
-                }), 409
-
-            cursor = conn.execute(
-                """
-                INSERT INTO claims
-                (
-                    report_id,
                     user_id,
+                    title,
                     message,
-                    status
+                    is_read,
+                    created_at
                 )
-                VALUES (?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?)
                 """,
                 (
-                    report_id,
-                    user["id"],
-                    message,
-                    "pending"
+                    admin["id"],
+                    "New Claim Request",
+                    (
+                        f"New claim submitted for "
+                        f"'{report['item_name']}'. "
+                        f"AI Match: {ai_score}%."
+                    ),
+                    0,
+                    created_at
                 )
             )
 
-            admin = conn.execute(
-                """
-                SELECT id
-                FROM users
-                WHERE role = 'admin'
-                LIMIT 1
-                """
-            ).fetchone()
+        conn.commit()
+        conn.close()
 
-            if admin:
+        print(
+            "NEW CLAIM:",
+            claim_id,
+            "REPORT:",
+            report_id,
+            "AI SCORE:",
+            ai_score
+        )
 
-                conn.execute(
-                    """
-                    INSERT INTO notifications
-                    (
-                        user_id,
-                        message,
-                        type
-                    )
-                    VALUES (?, ?, ?)
-                    """,
-                    (
-                        admin["id"],
-                        (
-                            f"New claim submitted for "
-                            f"'{report['title']}'."
-                        ),
-                        "claim"
-                    )
-                )
+        return jsonify({
 
-            conn.commit()
+            "success": True,
 
-            return jsonify({
-                "success": True,
-                "message": "Claim submitted successfully.",
-                "claim_id": cursor.lastrowid
-            }), 201
+            "message":
+                "Claim submitted successfully.",
 
-        finally:
+            "claim_id":
+                claim_id,
 
-            conn.close()
+            "ai_match_score":
+                ai_score,
+
+            "status":
+                "pending"
+
+        }), 201
 
     except Exception as e:
 
         print(
-            "CLAIM ERROR:",
+            "CREATE CLAIM ERROR:",
             repr(e)
         )
 
         return jsonify({
+
             "success": False,
-            "message": "Could not create claim.",
-            "error": str(e)
+
+            "message":
+                "Could not submit claim.",
+
+            "error":
+                str(e)
+
         }), 500
 
 
 # ============================================================
-# ADMIN CLAIMS
+# ADMIN - GET CLAIMS
 # ============================================================
 
-@app.route("/api/admin/claims")
+@app.route(
+    "/api/admin/claims",
+    methods=["GET"]
+)
 @admin_required
-def admin_claims():
+def get_admin_claims():
 
     try:
 
         conn = get_db()
 
-        try:
+        rows = conn.execute(
+            """
+            SELECT
 
-            rows = conn.execute(
-                """
-                SELECT
-                    c.*,
-                    r.title AS report_title,
-                    r.type AS report_type,
-                    u.name AS user_name,
-                    u.email AS user_email
-                FROM claims c
-                LEFT JOIN reports r
-                    ON c.report_id = r.id
-                LEFT JOIN users u
-                    ON c.user_id = u.id
-                ORDER BY c.id DESC
-                """
-            ).fetchall()
+                c.id AS claim_id,
 
-            return jsonify({
-                "success": True,
-                "claims": [
-                    dict(row)
-                    for row in rows
-                ]
-            })
+                c.report_id,
 
-        finally:
+                c.user_id,
 
-            conn.close()
+                c.claim_lost_location,
+
+                c.claim_item_details,
+
+                c.claim_reason,
+
+                c.message,
+
+                c.ai_match_score,
+
+                c.status AS claim_status,
+
+                c.created_at AS claim_created_at,
+
+                u.name AS claimant_name,
+
+                u.email AS claimant_email,
+
+                u.mobile AS claimant_mobile,
+
+                u.username AS claimant_username,
+
+                r.item_name,
+
+                r.item_type,
+
+                r.report_type,
+
+                r.category,
+
+                r.location AS found_location,
+
+                r.description AS found_description,
+
+                r.image,
+
+                r.report_date,
+
+                r.report_time,
+
+                r.status AS report_status
+
+            FROM claims c
+
+            INNER JOIN users u
+                ON u.id = c.user_id
+
+            INNER JOIN reports r
+                ON r.id = c.report_id
+
+            ORDER BY
+                c.created_at DESC,
+                c.id DESC
+            """
+        ).fetchall()
+
+        conn.close()
+
+        claims = []
+
+        for row in rows:
+
+            claim = dict(row)
+
+            if claim.get("image"):
+
+                claim["image_url"] = (
+                    "/uploads/"
+                    + claim["image"]
+                )
+
+            else:
+
+                claim["image_url"] = ""
+
+            try:
+
+                claim["ai_match_score"] = float(
+                    claim.get(
+                        "ai_match_score"
+                    ) or 0
+                )
+
+            except Exception:
+
+                claim["ai_match_score"] = 0
+
+            claims.append(
+                claim
+            )
+
+        return jsonify({
+
+            "success": True,
+
+            "claims":
+                claims
+
+        }), 200
 
     except Exception as e:
 
         print(
-            "ADMIN CLAIMS ERROR:",
+            "GET ADMIN CLAIMS ERROR:",
             repr(e)
         )
 
         return jsonify({
+
             "success": False,
-            "message": "Could not load claims.",
-            "error": str(e)
+
+            "claims": [],
+
+            "message":
+                "Could not load claim requests.",
+
+            "error":
+                str(e)
+
         }), 500
 
 
 # ============================================================
-# CLAIM STATUS
+# ADMIN - APPROVE / REJECT CLAIM
 # ============================================================
 
 @app.route(
     "/api/admin/claims/<int:claim_id>/status",
-    methods=["PUT", "PATCH", "POST"]
+    methods=["PUT", "POST", "PATCH"]
 )
 @admin_required
 def update_claim_status(claim_id):
@@ -1752,97 +2532,203 @@ def update_claim_status(claim_id):
         ) or {}
 
         status = str(
-            data.get("status", "")
+            data.get(
+                "status",
+                ""
+            )
         ).strip().lower()
 
-        allowed = {
-            "pending",
+        if status not in {
             "approved",
-            "rejected",
-            "resolved"
-        }
-
-        if status not in allowed:
+            "rejected"
+        }:
 
             return jsonify({
+
                 "success": False,
-                "message": "Invalid claim status."
+
+                "message":
+                    "Claim status must be approved or rejected."
+
             }), 400
 
         conn = get_db()
 
-        try:
+        claim = conn.execute(
+            """
+            SELECT
 
-            claim = conn.execute(
-                """
-                SELECT *
-                FROM claims
-                WHERE id = ?
-                """,
-                (claim_id,)
-            ).fetchone()
+                c.id,
+                c.report_id,
+                c.user_id,
+                c.status,
+                c.ai_match_score,
 
-            if not claim:
+                r.item_name
 
-                return jsonify({
-                    "success": False,
-                    "message": "Claim not found."
-                }), 404
+            FROM claims c
 
-            conn.execute(
-                """
-                UPDATE claims
-                SET status = ?
-                WHERE id = ?
-                """,
-                (
-                    status,
-                    claim_id
-                )
+            INNER JOIN reports r
+                ON r.id = c.report_id
+
+            WHERE c.id = ?
+
+            LIMIT 1
+            """,
+            (claim_id,)
+        ).fetchone()
+
+        if not claim:
+
+            conn.close()
+
+            return jsonify({
+
+                "success": False,
+
+                "message":
+                    "Claim not found."
+
+            }), 404
+
+        if claim["status"] in {
+            "approved",
+            "rejected"
+        }:
+
+            conn.close()
+
+            return jsonify({
+
+                "success": False,
+
+                "message":
+                    f"This claim is already {claim['status']}."
+
+            }), 409
+
+        conn.execute(
+            """
+            UPDATE claims
+            SET status = ?
+            WHERE id = ?
+            """,
+            (
+                status,
+                claim_id
             )
+        )
+
+        created_at = datetime.now().isoformat(
+            timespec="seconds"
+        )
+
+        # ----------------------------------------------------
+        # STUDENT NOTIFICATION
+        # ----------------------------------------------------
+
+        if claim["user_id"]:
+
+            if status == "approved":
+
+                title = "Claim Approved"
+
+                message = (
+                    f"Your claim for "
+                    f"'{claim['item_name']}' "
+                    f"has been approved by the administrator."
+                )
+
+            else:
+
+                title = "Claim Rejected"
+
+                message = (
+                    f"Your claim for "
+                    f"'{claim['item_name']}' "
+                    f"has been rejected by the administrator."
+                )
 
             conn.execute(
                 """
                 INSERT INTO notifications
                 (
                     user_id,
+                    title,
                     message,
-                    type
+                    is_read,
+                    created_at
                 )
-                VALUES (?, ?, ?)
+                VALUES (?, ?, ?, ?, ?)
                 """,
                 (
                     claim["user_id"],
-                    (
-                        f"Your claim #{claim_id} "
-                        f"has been {status}."
-                    ),
-                    "claim"
+                    title,
+                    message,
+                    0,
+                    created_at
                 )
             )
 
-            conn.commit()
+        # ----------------------------------------------------
+        # APPROVED ITEM = RESOLVED
+        # ----------------------------------------------------
 
-            return jsonify({
-                "success": True,
-                "message": "Claim status updated."
-            })
+        if status == "approved":
 
-        finally:
+            conn.execute(
+                """
+                UPDATE reports
+                SET status = 'resolved'
+                WHERE id = ?
+                """,
+                (
+                    claim["report_id"],
+                )
+            )
 
-            conn.close()
+        conn.commit()
+        conn.close()
+
+        print(
+            "CLAIM STATUS UPDATED:",
+            claim_id,
+            "->",
+            status
+        )
+
+        return jsonify({
+
+            "success": True,
+
+            "message":
+                f"Claim {status} successfully.",
+
+            "claim_id":
+                claim_id,
+
+            "status":
+                status
+
+        }), 200
 
     except Exception as e:
 
         print(
-            "CLAIM STATUS ERROR:",
+            "UPDATE CLAIM ERROR:",
             repr(e)
         )
 
         return jsonify({
+
             "success": False,
-            "message": "Could not update claim.",
-            "error": str(e)
+
+            "message":
+                "Could not update claim.",
+
+            "error":
+                str(e)
+
         }), 500
 
 
@@ -1850,52 +2736,62 @@ def update_claim_status(claim_id):
 # NOTIFICATIONS
 # ============================================================
 
-@app.route("/api/notifications")
+@app.route(
+    "/api/notifications",
+    methods=["GET"]
+)
 @login_required
 def get_notifications():
 
     try:
 
-        user = get_current_user()
-
         conn = get_db()
 
-        try:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                title,
+                message,
+                is_read,
+                created_at
+            FROM notifications
+            WHERE user_id = ?
+            ORDER BY id DESC
+            LIMIT 50
+            """,
+            (
+                session["user_id"],
+            )
+        ).fetchall()
 
-            rows = conn.execute(
-                """
-                SELECT *
-                FROM notifications
-                WHERE user_id = ?
-                ORDER BY id DESC
-                LIMIT 100
-                """,
-                (user["id"],)
-            ).fetchall()
+        conn.close()
 
-            return jsonify({
-                "success": True,
-                "notifications": [
-                    dict(row)
-                    for row in rows
-                ]
-            })
+        notifications = [
+            dict(row)
+            for row in rows
+        ]
 
-        finally:
+        return jsonify({
 
-            conn.close()
+            "success": True,
+
+            "notifications":
+                notifications
+
+        }), 200
 
     except Exception as e:
 
-        print(
-            "NOTIFICATION ERROR:",
-            repr(e)
-        )
-
         return jsonify({
+
             "success": False,
-            "message": "Could not load notifications.",
-            "error": str(e)
+
+            "notifications": [],
+
+            "error":
+                str(e)
+
         }), 500
 
 
@@ -1905,259 +2801,263 @@ def get_notifications():
 
 @app.route(
     "/api/notifications/clear",
-    methods=["POST", "DELETE"]
+    methods=["POST"]
 )
 @login_required
 def clear_notifications():
 
     try:
 
-        user = get_current_user()
-
         conn = get_db()
 
-        try:
-
-            conn.execute(
-                """
-                UPDATE notifications
-                SET is_read = 1
-                WHERE user_id = ?
-                """,
-                (user["id"],)
+        conn.execute(
+            """
+            DELETE FROM notifications
+            WHERE user_id = ?
+            """,
+            (
+                session["user_id"],
             )
+        )
 
-            conn.commit()
+        conn.commit()
+        conn.close()
 
-            return jsonify({
-                "success": True,
-                "message": "Notifications cleared."
-            })
+        return jsonify({
 
-        finally:
+            "success": True,
 
-            conn.close()
+            "message":
+                "Notifications cleared."
+
+        }), 200
 
     except Exception as e:
 
-        print(
-            "CLEAR NOTIFICATIONS ERROR:",
-            repr(e)
-        )
-
         return jsonify({
+
             "success": False,
-            "message": "Could not clear notifications.",
-            "error": str(e)
+
+            "message":
+                "Could not clear notifications.",
+
+            "error":
+                str(e)
+
         }), 500
 
 
 # ============================================================
-# SIMPLE AI MATCHING
+# AI FALLBACK MATCH
 # ============================================================
 
 def fallback_match(
-    source_report,
-    other_reports
+    lost_item,
+    found_item
 ):
 
-    matches = []
+    score = 0
 
-    source_text = " ".join([
-        str(source_report.get("title", "")),
-        str(source_report.get("description", "")),
-        str(source_report.get("category", "")),
-        str(source_report.get("location", ""))
-    ]).lower()
-
-    source_words = {
-        word.strip(".,!?")
-        for word in source_text.split()
-        if len(word.strip(".,!?")) >= 3
-    }
-
-    for report in other_reports:
-
-        target_text = " ".join([
-            str(report.get("title", "")),
-            str(report.get("description", "")),
-            str(report.get("category", "")),
-            str(report.get("location", ""))
-        ]).lower()
-
-        target_words = {
-            word.strip(".,!?")
-            for word in target_text.split()
-            if len(word.strip(".,!?")) >= 3
-        }
-
-        common_words = (
-            source_words & target_words
+    lost_name = str(
+        lost_item.get(
+            "item_name",
+            ""
         )
+    ).lower()
 
-        score = len(common_words)
+    found_name = str(
+        found_item.get(
+            "item_name",
+            ""
+        )
+    ).lower()
 
-        if (
-            source_report.get("category")
-            and report.get("category")
-            and
-            str(
-                source_report["category"]
-            ).lower()
-            ==
-            str(
-                report["category"]
-            ).lower()
-        ):
+    lost_category = str(
+        lost_item.get(
+            "category",
+            ""
+        )
+    ).lower()
 
-            score += 2
+    found_category = str(
+        found_item.get(
+            "category",
+            ""
+        )
+    ).lower()
 
-        if (
-            source_report.get("location")
-            and report.get("location")
-            and
-            str(
-                source_report["location"]
-            ).lower()
-            ==
-            str(
-                report["location"]
-            ).lower()
-        ):
+    lost_location = str(
+        lost_item.get(
+            "location",
+            ""
+        )
+    ).lower()
 
-            score += 2
+    found_location = str(
+        found_item.get(
+            "location",
+            ""
+        )
+    ).lower()
 
-        if score > 0:
+    # --------------------------------------------------------
+    # NAME
+    # --------------------------------------------------------
 
-            matches.append({
-                "report": report,
-                "score": score,
-                "match_reason":
-                    "Similar item details, "
-                    "category or location."
-            })
+    if (
+        set(lost_name.split())
+        &
+        set(found_name.split())
+    ):
+        score += 40
 
-    matches.sort(
-        key=lambda x: x["score"],
-        reverse=True
+    # --------------------------------------------------------
+    # CATEGORY
+    # --------------------------------------------------------
+
+    if (
+        lost_category
+        and found_category
+        and lost_category == found_category
+    ):
+        score += 30
+
+    # --------------------------------------------------------
+    # LOCATION
+    # --------------------------------------------------------
+
+    if (
+        lost_location
+        and found_location
+        and (
+            lost_location in found_location
+            or found_location in lost_location
+        )
+    ):
+        score += 20
+
+    # --------------------------------------------------------
+    # DESCRIPTION
+    # --------------------------------------------------------
+
+    lost_description = str(
+        lost_item.get(
+            "description",
+            ""
+        )
+    ).lower()
+
+    found_description = str(
+        found_item.get(
+            "description",
+            ""
+        )
+    ).lower()
+
+    if (
+        set(lost_description.split())
+        &
+        set(found_description.split())
+    ):
+        score += 10
+
+    return min(
+        score,
+        100
     )
-
-    return matches[:10]
 
 
 # ============================================================
-# MATCH API
+# AI MATCHES
 # ============================================================
 
 @app.route(
     "/api/matches",
-    methods=["GET", "POST"]
+    methods=["GET"]
 )
-@login_required
 def get_matches():
 
     try:
 
         conn = get_db()
 
-        try:
+        lost_rows = conn.execute(
+            """
+            SELECT *
+            FROM reports
+            WHERE report_type = 'lost'
+            AND status != 'rejected'
+            ORDER BY id DESC
+            """
+        ).fetchall()
 
-            if request.method == "POST":
+        found_rows = conn.execute(
+            """
+            SELECT *
+            FROM reports
+            WHERE report_type = 'found'
+            AND status != 'rejected'
+            ORDER BY id DESC
+            """
+        ).fetchall()
 
-                data = request.get_json(
-                    silent=True
-                ) or {}
+        conn.close()
 
-                report_id = data.get(
-                    "report_id"
+        lost_items = [
+            dict(row)
+            for row in lost_rows
+        ]
+
+        found_items = [
+            dict(row)
+            for row in found_rows
+        ]
+
+        matches = []
+
+        for lost in lost_items:
+
+            for found in found_items:
+
+                score = fallback_match(
+                    lost,
+                    found
                 )
 
-            else:
+                if score >= 20:
 
-                report_id = request.args.get(
-                    "report_id"
-                )
+                    matches.append({
 
-            if report_id:
+                        "lost":
+                            lost,
 
-                source = conn.execute(
-                    """
-                    SELECT *
-                    FROM reports
-                    WHERE id = ?
-                    """,
-                    (report_id,)
-                ).fetchone()
+                        "found":
+                            found,
 
-            else:
+                        "score":
+                            score,
 
-                user = get_current_user()
+                        "match_score":
+                            score,
 
-                source = conn.execute(
-                    """
-                    SELECT *
-                    FROM reports
-                    WHERE user_id = ?
-                    AND type = 'lost'
-                    ORDER BY id DESC
-                    LIMIT 1
-                    """,
-                    (user["id"],)
-                ).fetchone()
+                        "confidence":
+                            f"{score}%"
 
-            if not source:
+                    })
 
-                return jsonify({
-                    "success": True,
-                    "ai_connected": False,
-                    "matches": []
-                })
+        matches.sort(
+            key=lambda x: x["score"],
+            reverse=True
+        )
 
-            source_dict = dict(source)
+        return jsonify({
 
-            opposite_type = (
-                "found"
-                if source_dict["type"] == "lost"
-                else "lost"
-            )
+            "success": True,
 
-            rows = conn.execute(
-                """
-                SELECT
-                    r.*,
-                    u.name AS user_name
-                FROM reports r
-                LEFT JOIN users u
-                    ON r.user_id = u.id
-                WHERE r.type = ?
-                AND (
-                    r.approval_status = 'approved'
-                    OR r.approval_status IS NULL
-                )
-                ORDER BY r.id DESC
-                """,
-                (opposite_type,)
-            ).fetchall()
+            "matches":
+                matches
 
-            other_reports = [
-                dict(row)
-                for row in rows
-            ]
-
-            matches = fallback_match(
-                source_dict,
-                other_reports
-            )
-
-            return jsonify({
-                "success": True,
-                "ai_connected": False,
-                "matches": matches
-            })
-
-        finally:
-
-            conn.close()
+        }), 200
 
     except Exception as e:
 
@@ -2167,110 +3067,188 @@ def get_matches():
         )
 
         return jsonify({
+
             "success": False,
-            "ai_connected": False,
+
             "matches": [],
-            "message": "Matching failed.",
-            "error": str(e)
+
+            "message":
+                "Could not calculate matches.",
+
+            "error":
+                str(e)
+
         }), 500
 
 
 # ============================================================
-# HEALTH CHECK
+# HEALTH
 # ============================================================
 
-@app.route("/api/health")
+@app.route(
+    "/api/health",
+    methods=["GET"]
+)
 def health():
 
     try:
 
         conn = get_db()
 
-        try:
+        conn.execute(
+            "SELECT 1"
+        ).fetchone()
 
-            conn.execute(
-                "SELECT 1"
-            ).fetchone()
+        conn.close()
 
-            return jsonify({
-                "success": True,
-                "status": "healthy",
-                "database": "SQLite",
-                "database_file": str(DATABASE)
-            })
+        return jsonify({
 
-        finally:
+            "success": True,
 
-            conn.close()
+            "status":
+                "healthy",
+
+            "database":
+                "SQLite",
+
+            "database_file":
+                str(DATABASE),
+
+            "timestamp":
+                datetime.now().isoformat()
+
+        }), 200
 
     except Exception as e:
 
         return jsonify({
+
             "success": False,
-            "status": "unhealthy",
-            "database": "SQLite",
-            "error": str(e)
+
+            "status":
+                "error",
+
+            "error":
+                str(e)
+
         }), 500
 
 
 # ============================================================
-# ERROR HANDLERS
+# 413 ERROR
 # ============================================================
 
 @app.errorhandler(413)
 def file_too_large(error):
 
     return jsonify({
+
         "success": False,
-        "message": "File too large. Maximum size is 10 MB."
+
+        "message":
+            "File is too large. Maximum size is 10 MB."
+
     }), 413
 
+
+# ============================================================
+# 404 ERROR
+# ============================================================
 
 @app.errorhandler(404)
 def page_not_found(error):
 
-    if request.path.startswith("/api/"):
+    if request.path.startswith(
+        "/api/"
+    ):
 
         return jsonify({
+
             "success": False,
-            "message": "API endpoint not found."
+
+            "message":
+                "API endpoint not found.",
+
+            "path":
+                request.path
+
         }), 404
 
-    return render_template(
-        "index.html"
+    return (
+        "Page not found.",
+        404
     )
 
+
+# ============================================================
+# 500 ERROR
+# ============================================================
 
 @app.errorhandler(500)
 def internal_server_error(error):
 
-    print(
-        "INTERNAL SERVER ERROR:",
-        repr(error)
-    )
-
     return jsonify({
+
         "success": False,
-        "message": "Internal server error."
+
+        "message":
+            "Internal server error."
+
     }), 500
 
 
 # ============================================================
-# LOCAL RUN
+# START
 # ============================================================
 
 if __name__ == "__main__":
 
-    print()
     print("=" * 60)
-    print("          CAMPUSFIND - LOST & FOUND AI")
+
+    print(
+        "       CAMPUSFIND | LOST & FOUND AI"
+    )
+
     print("=" * 60)
-    print()
-    print("Database :", DATABASE)
-    print("Uploads  :", UPLOAD_FOLDER)
-    print()
+
+    print(
+        "Database:",
+        DATABASE
+    )
+
+    print(
+        "Uploads:",
+        UPLOAD_DIR
+    )
+
+    print(
+        "Templates:",
+        TEMPLATES_DIR
+    )
+
+    print(
+        "Static:",
+        STATIC_DIR
+    )
+
+    print(
+        "Authorized Admin:",
+        ADMIN_EMAIL
+    )
+
+    print("=" * 60)
 
     init_db()
+
+    print(
+        "Server running at:"
+    )
+
+    print(
+        "http://127.0.0.1:5000"
+    )
+
+    print("=" * 60)
 
     app.run(
         host="127.0.0.1",
