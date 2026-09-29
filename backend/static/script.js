@@ -92,13 +92,14 @@ async function loadUser() {
 
     try {
 
-        const response = await fetch(
-            `${API_BASE}/me`,
-            {
-                method: "GET",
-                credentials: "include"
-            }
-        );
+        const response =
+            await fetch(
+                `${API_BASE}/me`,
+                {
+                    method: "GET",
+                    credentials: "include"
+                }
+            );
 
         if (response.ok) {
 
@@ -845,6 +846,60 @@ function normalizeReport(report) {
 
 
 /* ============================================================
+   IMAGE URL HELPER
+   FIXES 404 FOR UPLOADED IMAGES
+============================================================ */
+
+function getImageUrl(image) {
+
+    if (!image) return "";
+
+    image = String(image).trim();
+
+    if (!image) return "";
+
+
+    /* Already a complete URL */
+
+    if (
+        image.startsWith("http://") ||
+        image.startsWith("https://")
+    ) {
+
+        return image;
+
+    }
+
+
+    /* Already correct */
+
+    if (
+        image.startsWith("/uploads/")
+    ) {
+
+        return image;
+
+    }
+
+
+    /* Filename only */
+
+    if (
+        !image.startsWith("/")
+    ) {
+
+        return `/uploads/${image}`;
+
+    }
+
+
+    /* Handle paths such as /filename.jpg */
+
+    return `/uploads${image}`;
+}
+
+
+/* ============================================================
    RECENT REPORTS
 ============================================================ */
 
@@ -998,8 +1053,12 @@ function createReportCard(report) {
 
             ? `
                 <img
-                    src="${escapeHTML(report.image)}"
-                    alt="${escapeHTML(report.item_name)}"
+                    src="${escapeHTML(
+                        getImageUrl(report.image)
+                    )}"
+                    alt="${escapeHTML(
+                        report.item_name
+                    )}"
                     class="report-image"
                     onerror="this.style.display='none';"
                 >
@@ -1526,7 +1585,7 @@ function setupClaimForm() {
              * claim information in the `message`
              * field.
              *
-             * So we combine the details into one message.
+             * We combine the details into one message.
              */
 
             const combinedMessage = `
@@ -1573,10 +1632,32 @@ ${claimMessage}
 
                             credentials: "include",
 
+                            /*
+                             * IMPORTANT FIX:
+                             *
+                             * Flask backend requires:
+                             * - report_id
+                             * - claim_lost_location
+                             * - claim_item_details
+                             * - claim_reason
+                             *
+                             * We also keep `message`
+                             * for the admin claim display.
+                             */
+
                             body: JSON.stringify({
 
                                 report_id:
                                     Number(reportId),
+
+                                claim_lost_location:
+                                    lostLocation,
+
+                                claim_item_details:
+                                    itemDetails,
+
+                                claim_reason:
+                                    claimMessage,
 
                                 message:
                                     combinedMessage
@@ -1728,6 +1809,12 @@ async function loadMatches() {
             Array.isArray(data.matches)
                 ? data.matches
                 : [];
+
+
+        /* Store matches for admin claim AI score */
+
+        window.campusFindMatches =
+            matches;
 
 
         if (matches.length === 0) {
@@ -1896,7 +1983,9 @@ async function loadMatches() {
                                             ? `
                                                 <img
                                                     src="${escapeHTML(
-                                                        lostImage
+                                                        getImageUrl(
+                                                            lostImage
+                                                        )
                                                     )}"
                                                     alt="${escapeHTML(
                                                         lostName
@@ -1982,7 +2071,9 @@ async function loadMatches() {
                                             ? `
                                                 <img
                                                     src="${escapeHTML(
-                                                        foundImage
+                                                        getImageUrl(
+                                                            foundImage
+                                                        )
                                                     )}"
                                                     alt="${escapeHTML(
                                                         foundName
@@ -2117,6 +2208,9 @@ async function loadMatches() {
             "AI match error:",
             error
         );
+
+
+        window.campusFindMatches = [];
 
 
         container.innerHTML = `
@@ -2403,7 +2497,9 @@ function createAdminReportCard(
             ? `
                 <img
                     src="${escapeHTML(
-                        report.image
+                        getImageUrl(
+                            report.image
+                        )
                     )}"
                     alt="${escapeHTML(
                         report.item_name
@@ -3109,9 +3205,6 @@ function createAdminClaimCard(
 
     /*
      * Find AI score for this found report.
-     *
-     * adminClaims may contain the report ID,
-     * while /api/matches returns lost/found objects.
      */
 
     const aiScore =
@@ -3378,20 +3471,8 @@ function findClaimAIScore(
     reportId
 ) {
 
-    /*
-     * Default value.
-     */
-
     let bestScore = 0;
 
-
-    /*
-     * If matches have not been loaded,
-     * return 0.
-     *
-     * We fetch them synchronously through
-     * cache only if available later.
-     */
 
     if (
         !window.campusFindMatches ||

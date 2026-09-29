@@ -1,7 +1,7 @@
 /* ============================================================
    CAMPUSFIND - LOST & FOUND AI
    COMPLETE WHITE UI CSS
-   Image Display Fixed
+   FIXED IMAGE DISPLAY
 ============================================================ */
 
 
@@ -611,19 +611,26 @@ a {
 
 
 /* ============================================================
-   REPORT CARD IMAGE - FIXED
+   REPORT CARD IMAGE
+   IMPORTANT FIX
 ============================================================ */
 
 .report-card-image {
-    width: 100%;
+    width: 100% !important;
 
-    height: 220px;
+    height: 220px !important;
 
-    object-fit: contain;
+    min-height: 220px !important;
 
-    object-position: center;
+    max-height: 220px !important;
 
-    display: block;
+    max-width: 100% !important;
+
+    object-fit: contain !important;
+
+    object-position: center !important;
+
+    display: block !important;
 
     background: #f8fafc;
 
@@ -632,6 +639,24 @@ a {
     border-bottom: 1px solid var(--border);
 
     flex-shrink: 0;
+
+    overflow: hidden;
+}
+
+
+/* ============================================================
+   EXTRA IMAGE PROTECTION
+   Prevents large images from escaping cards
+============================================================ */
+
+.report-card img {
+    max-width: 100% !important;
+
+    max-height: 220px !important;
+
+    object-fit: contain !important;
+
+    display: block;
 }
 
 
@@ -848,19 +873,29 @@ a {
 
 
 /* ============================================================
-   IMAGE PREVIEW - FIXED
+   IMAGE PREVIEW
 ============================================================ */
 
 .image-preview {
     margin-top: 12px;
+
+    width: 180px;
+
+    max-width: 100%;
+
+    overflow: hidden;
 }
 
 .image-preview img {
-    width: 180px;
+    width: 180px !important;
 
-    height: 130px;
+    height: 130px !important;
 
-    object-fit: contain;
+    max-width: 180px !important;
+
+    max-height: 130px !important;
+
+    object-fit: contain !important;
 
     object-position: center;
 
@@ -964,6 +999,7 @@ a {
     display: flex;
 
     align-items: center;
+
     justify-content: center;
 
     font-size: 27px;
@@ -1003,6 +1039,35 @@ a {
     padding: 18px;
 
     box-shadow: var(--shadow-sm);
+
+    overflow: hidden;
+}
+
+
+/* ============================================================
+   MATCH CARD IMAGES
+============================================================ */
+
+.match-card img {
+    width: 100% !important;
+
+    height: 180px !important;
+
+    max-height: 180px !important;
+
+    object-fit: contain !important;
+
+    object-position: center !important;
+
+    background: #f8fafc;
+
+    border-radius: 10px;
+
+    padding: 8px;
+
+    margin-bottom: 12px;
+
+    display: block;
 }
 
 .match-card h3 {
@@ -1100,6 +1165,7 @@ a {
     display: flex;
 
     align-items: center;
+
     justify-content: center;
 
     background: var(--primary-light);
@@ -1289,6 +1355,8 @@ a {
 
 .admin-report-info {
     flex: 1;
+
+    min-width: 0;
 }
 
 .admin-report-info h3 {
@@ -1309,17 +1377,23 @@ a {
 
 
 /* ============================================================
-   ADMIN REPORT IMAGE - FIXED
+   ADMIN REPORT IMAGE
 ============================================================ */
 
 .admin-report-image {
-    width: 100px;
+    width: 100px !important;
 
-    height: 80px;
+    height: 80px !important;
 
-    object-fit: contain;
+    min-width: 100px !important;
 
-    object-position: center;
+    max-width: 100px !important;
+
+    max-height: 80px !important;
+
+    object-fit: contain !important;
+
+    object-position: center !important;
 
     background: #f8fafc;
 
@@ -1524,6 +1598,7 @@ a {
     display: flex;
 
     align-items: center;
+
     justify-content: center;
 
     font-size: 24px;
@@ -1795,6 +1870,7 @@ a {
     display: flex;
 
     align-items: center;
+
     justify-content: center;
 
     font-weight: 800;
@@ -1988,8 +2064,19 @@ input[type="file"]::file-selector-button:hover {
         grid-template-columns: 1fr;
     }
 
+    /* FIXED MOBILE IMAGE */
     .report-card-image {
-        height: 230px;
+        width: 100% !important;
+
+        height: 200px !important;
+
+        min-height: 200px !important;
+
+        max-height: 200px !important;
+    }
+
+    .report-card img {
+        max-height: 200px !important;
     }
 
     .matches-container {
@@ -2017,9 +2104,15 @@ input[type="file"]::file-selector-button:hover {
     }
 
     .admin-report-image {
-        width: 100%;
+        width: 100% !important;
 
-        height: 180px;
+        height: 180px !important;
+
+        min-width: 0 !important;
+
+        max-width: 100% !important;
+
+        max-height: 180px !important;
     }
 
     .admin-report-actions {
@@ -2032,6 +2125,7 @@ input[type="file"]::file-selector-button:hover {
 
     .notification-panel {
         top: 10px;
+
         right: 10px;
 
         max-width: calc(100vw - 20px);
@@ -2087,6 +2181,7 @@ input[type="file"]::file-selector-button:hover {
 
     .toast {
         left: 12px;
+
         right: 12px;
 
         bottom: 15px;
@@ -2097,15 +2192,25 @@ input[type="file"]::file-selector-button:hover {
     }
 
     .report-card-image {
-        height: 210px;
+        height: 190px !important;
+
+        min-height: 190px !important;
+
+        max-height: 190px !important;
+    }
+
+    .report-card img {
+        max-height: 190px !important;
     }
 
     .image-preview img {
-        width: 100%;
+        width: 100% !important;
 
-        max-width: 180px;
+        max-width: 180px !important;
 
-        height: 130px;
+        height: 130px !important;
+
+        max-height: 130px !important;
     }
 }
 
@@ -2118,6 +2223,7 @@ input[type="file"]::file-selector-button:hover {
     display: flex;
 
     align-items: center;
+
     justify-content: center;
 
     min-height: 120px;
@@ -2157,6 +2263,27 @@ input[type="file"]::file-selector-button:hover {
 
 .admin-only {
     display: flex;
+}
+
+
+/* ============================================================
+   GLOBAL IMAGE SAFETY
+   Prevents uploaded images from becoming huge
+============================================================ */
+
+img {
+    max-width: 100%;
+}
+
+
+/* Do NOT allow report images to escape their containers */
+.report-card,
+.report-card-image,
+.admin-report,
+.admin-report-image,
+.image-preview,
+.match-card {
+    overflow: hidden;
 }
 
 
