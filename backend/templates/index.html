@@ -1,4 +1,4 @@
-```html
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -1571,12 +1571,12 @@
                 <label>
                     Where did you lose the item?
                 </label>
-
-                <input type="text"
-                       id="claimLostLocation"
-                       name="lost_location"
-                       placeholder="Example: Library, CSE Block, Lab"
-                       required>
+                <input
+                    type="text"
+                    id="claimLocation"
+                    name="location"
+                    placeholder="Example: Library, CSE Block, Lab"
+>
 
             </div>
 
@@ -1931,21 +1931,20 @@
 
 <div id="notificationPanel"
      class="notification-panel">
-
-
     <div class="notification-header">
 
-        <h2>
-            🔔 Notifications
-        <button type="button"
+    <h2>
+        🔔 Notifications
+    </h2>
+
+    <button
+        type="button"
         id="closeNotificationBtn"
         onclick="closeNotifications()">
-    ×
-</button>
+        ×
+    </button>
 
-        </button>
-
-    </div>
+</div>
 
 
     <div id="notificationsList">

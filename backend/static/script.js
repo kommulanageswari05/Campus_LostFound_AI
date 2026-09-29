@@ -1,21 +1,44 @@
 /* ============================================================
    CAMPUSFIND - LOST & FOUND AI
-   COMPLETE JAVASCRIPT
-   Login + Register + Dashboard + Reports + AI + Claims
-   Notifications + Admin Approve/Reject + Admin Users
+   COMPLETE SCRIPT.JS
+
+   Modules:
+   - Login
+   - Register
+   - Logout
+   - Dashboard
+   - Lost Items
+   - Found Items
+   - Report Item
+   - Image Preview
+   - AI Match
+   - Claim Item
+   - Notifications
+   - Admin Panel
+   - Admin Report Approve / Reject
+   - Admin Claim Approve / Reject
+   - Admin Users
 ============================================================ */
+
+"use strict";
 
 
 /* ============================================================
-   GLOBAL STATE
+   GLOBAL VARIABLES
 ============================================================ */
+
+const API_BASE = "/api";
 
 let currentUser = null;
 
 let allReports = [];
+
 let allMatches = [];
+
 let allNotifications = [];
+
 let allAdminClaims = [];
+
 let allAdminUsers = [];
 
 let currentAdminFilter = "all";
@@ -24,33 +47,40 @@ let isLoggingOut = false;
 
 
 /* ============================================================
-   DOM HELPER
+   DOM READY
 ============================================================ */
 
-function $(id) {
-    return document.getElementById(id);
-}
+document.addEventListener("DOMContentLoaded", () => {
+
+    console.log("CampusFind script loaded.");
+
+    updateDateTime();
+
+    setInterval(updateDateTime, 1000);
+
+    setupReportForm();
+
+    setupImagePreview();
+
+    setupLoginForm();
+
+    setupRegisterForm();
+
+    setupClaimForm();
+
+    loadUser();
+
+});
 
 
 /* ============================================================
-   ARRAY HELPER
+   SAFE ELEMENT
 ============================================================ */
 
-function getArray(data, keys = []) {
+function getElement(id) {
 
-    if (Array.isArray(data)) {
-        return data;
-    }
+    return document.getElementById(id);
 
-    for (const key of keys) {
-
-        if (Array.isArray(data?.[key])) {
-            return data[key];
-        }
-
-    }
-
-    return [];
 }
 
 
@@ -79,105 +109,13 @@ function escapeHTML(value) {
 
 function capitalize(value) {
 
-    if (!value) {
-        return "";
-    }
+    if (!value) return "";
 
-    return String(value).charAt(0).toUpperCase() +
-           String(value).slice(1);
-}
+    const text = String(value);
 
+    return text.charAt(0).toUpperCase() +
+           text.slice(1);
 
-/* ============================================================
-   DATE FORMAT
-============================================================ */
-
-function formatDate(value) {
-
-    if (!value) {
-        return "N/A";
-    }
-
-    try {
-
-        const date = new Date(value);
-
-        if (Number.isNaN(date.getTime())) {
-            return value;
-        }
-
-        return date.toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric"
-        });
-
-    } catch (error) {
-
-        return value;
-    }
-}
-
-
-/* ============================================================
-   TIME FORMAT
-============================================================ */
-
-function formatTime(value) {
-
-    if (!value) {
-        return "";
-    }
-
-    return value;
-}
-
-
-/* ============================================================
-   TOAST
-============================================================ */
-
-function showToast(message, type = "success") {
-
-    const toast = $("toast");
-    const toastMessage = $("toastMessage");
-    const toastIcon = $("toastIcon");
-
-    if (!toast || !toastMessage) {
-        alert(message);
-        return;
-    }
-
-    toastMessage.textContent = message;
-
-    if (toastIcon) {
-
-        if (type === "error") {
-            toastIcon.textContent = "!";
-            toastIcon.style.background = "#fef2f2";
-            toastIcon.style.color = "#dc2626";
-        }
-
-        else if (type === "warning") {
-            toastIcon.textContent = "!";
-            toastIcon.style.background = "#fffbeb";
-            toastIcon.style.color = "#d97706";
-        }
-
-        else {
-            toastIcon.textContent = "✓";
-            toastIcon.style.background = "#ecfdf3";
-            toastIcon.style.color = "#16a34a";
-        }
-    }
-
-    toast.classList.add("show");
-
-    clearTimeout(window.campusFindToastTimer);
-
-    window.campusFindToastTimer = setTimeout(() => {
-        toast.classList.remove("show");
-    }, 3000);
 }
 
 
@@ -185,51 +123,295 @@ function showToast(message, type = "success") {
    API REQUEST
 ============================================================ */
 
-async function apiRequest(url, options = {}) {
+async function apiRequest(
+    endpoint,
+    options = {}
+) {
 
     const config = {
         credentials: "include",
-        ...options,
-        headers: {
-            ...(options.headers || {})
-        }
+        ...options
     };
 
     if (
         config.body &&
         !(config.body instanceof FormData) &&
-        typeof config.body === "object"
+        typeof config.body !== "string"
     ) {
 
-        config.headers["Content-Type"] = "application/json";
+        config.headers = {
+            ...(config.headers || {}),
+            "Content-Type": "application/json"
+        };
 
-        config.body = JSON.stringify(config.body);
+        config.body =
+            JSON.stringify(config.body);
+
     }
 
-    const response = await fetch(url, config);
+    const response =
+        await fetch(
+            `${API_BASE}${endpoint}`,
+            config
+        );
 
-    let data = {};
+    let data = null;
 
-    try {
+    const contentType =
+        response.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+
         data = await response.json();
-    }
 
-    catch (error) {
+    } else {
 
-        data = {};
+        const text =
+            await response.text();
+
+        data = {
+            success: response.ok,
+            message: text
+        };
+
     }
 
     if (!response.ok) {
 
-        const message =
-            data.message ||
-            data.error ||
-            `Request failed (${response.status})`;
+        throw new Error(
+            data?.message ||
+            `Request failed with status ${response.status}`
+        );
 
-        throw new Error(message);
     }
 
     return data;
+
+}
+
+
+/* ============================================================
+   DATE / TIME
+============================================================ */
+
+function updateDateTime() {
+
+    const element =
+        getElement("currentDateTime");
+
+    if (!element) return;
+
+    const now = new Date();
+
+    element.textContent =
+        now.toLocaleString(
+            "en-IN",
+            {
+                weekday: "short",
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit"
+            }
+        );
+
+}
+
+
+/* ============================================================
+   LOAD CURRENT USER
+============================================================ */
+
+async function loadUser() {
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/me",
+                {
+                    method: "GET"
+                }
+            );
+
+        if (
+            data &&
+            data.success &&
+            data.user
+        ) {
+
+            currentUser =
+                data.user;
+
+            localStorage.setItem(
+                "campusfindUser",
+                JSON.stringify(currentUser)
+            );
+
+            showLoggedInUI();
+
+            await loadApplicationData();
+
+            return;
+
+        }
+
+    } catch (error) {
+
+        console.log(
+            "No active server session.",
+            error.message
+        );
+
+    }
+
+    currentUser = null;
+
+    showLoggedOutUI();
+
+}
+
+
+/* ============================================================
+   SHOW LOGGED-IN UI
+============================================================ */
+
+function showLoggedInUI() {
+
+    const loginScreen =
+        getElement("loginFirstScreen");
+
+    if (loginScreen) {
+
+        loginScreen.style.display =
+            "none";
+
+    }
+
+    updateUserUI();
+
+    if (isAdminUser()) {
+
+        showAdminMenu();
+
+    } else {
+
+        hideAdminMenu();
+
+    }
+
+}
+
+
+/* ============================================================
+   SHOW LOGGED-OUT UI
+============================================================ */
+
+function showLoggedOutUI() {
+
+    currentUser = null;
+
+    const loginScreen =
+        getElement("loginFirstScreen");
+
+    if (loginScreen) {
+
+        loginScreen.style.display =
+            "flex";
+
+    }
+
+    hideAdminMenu();
+
+}
+
+
+/* ============================================================
+   LOAD APPLICATION DATA
+============================================================ */
+
+async function loadApplicationData() {
+
+    await Promise.allSettled([
+
+        loadReports(),
+
+        loadMatches(),
+
+        loadNotifications()
+
+    ]);
+
+    if (isAdminUser()) {
+
+        await Promise.allSettled([
+
+            loadAdminReports(),
+
+            loadAdminClaims(),
+
+            loadAdminUsers(),
+
+            refreshAdminStats()
+
+        ]);
+
+    }
+
+}
+
+
+/* ============================================================
+   USER UI
+============================================================ */
+
+function updateUserUI() {
+
+    if (!currentUser) return;
+
+    const name =
+        currentUser.name ||
+        currentUser.username ||
+        currentUser.email ||
+        "User";
+
+    const role =
+        currentUser.role ||
+        currentUser.user_role ||
+        "student";
+
+    const avatar =
+        getElement("userAvatar");
+
+    const nameElement =
+        getElement("sidebarUserName");
+
+    const roleElement =
+        getElement("sidebarUserRole");
+
+    if (avatar) {
+
+        avatar.textContent =
+            name.charAt(0).toUpperCase();
+
+    }
+
+    if (nameElement) {
+
+        nameElement.textContent =
+            name;
+
+    }
+
+    if (roleElement) {
+
+        roleElement.textContent =
+            capitalize(role);
+
+    }
+
 }
 
 
@@ -240,787 +422,86 @@ async function apiRequest(url, options = {}) {
 function isAdminUser() {
 
     if (!currentUser) {
+
         return false;
+
     }
-
-    const role = String(
-        currentUser.role ||
-        currentUser.user_role ||
-        ""
-    ).toLowerCase();
-
-    return role === "admin";
-}
-
-
-function isAdmin() {
-    return isAdminUser();
-}
-
-
-/* ============================================================
-   APP VISIBILITY
-============================================================ */
-
-function setAppVisible(visible) {
-
-    const firstScreen = $("loginFirstScreen");
-
-    const sidebar = document.querySelector(".sidebar");
-
-    const mainContent = document.querySelector(".main-content");
-
-
-    if (visible) {
-
-        console.log("SHOWING APPLICATION");
-
-        if (firstScreen) {
-
-            firstScreen.classList.add("hidden");
-
-            firstScreen.style.display = "none";
-
-            firstScreen.style.pointerEvents = "none";
-
-            firstScreen.style.visibility = "hidden";
-        }
-
-        if (sidebar) {
-
-            sidebar.style.display = "";
-
-            sidebar.style.pointerEvents = "auto";
-        }
-
-        if (mainContent) {
-
-            mainContent.style.display = "";
-
-            mainContent.style.pointerEvents = "auto";
-        }
-    }
-
-    else {
-
-        console.log("SHOWING LOGIN SCREEN");
-
-        if (firstScreen) {
-
-            firstScreen.classList.remove("hidden");
-
-            firstScreen.style.display = "flex";
-
-            firstScreen.style.pointerEvents = "auto";
-
-            firstScreen.style.visibility = "visible";
-        }
-
-        if (sidebar) {
-
-            sidebar.style.display = "none";
-        }
-
-        if (mainContent) {
-
-            mainContent.style.display = "none";
-        }
-    }
-}
-
-
-/* ============================================================
-   USER UI
-============================================================ */
-
-function updateUserUI() {
-
-    if (!currentUser) {
-        return;
-    }
-
-
-    const name =
-        currentUser.name ||
-        currentUser.username ||
-        currentUser.email ||
-        "User";
-
 
     const role =
-        currentUser.role ||
-        currentUser.user_role ||
-        "student";
+        String(
+            currentUser.role ||
+            currentUser.user_role ||
+            ""
+        ).toLowerCase();
 
+    const email =
+        String(
+            currentUser.email ||
+            ""
+        ).toLowerCase();
 
-    /* USER NAME */
-
-    const possibleNameElements = document.querySelectorAll(
-        "#userName, .user-name, [data-user-name]"
+    return (
+        role === "admin" ||
+        role === "administrator" ||
+        email === "admin@campusfind.com"
     );
 
-    possibleNameElements.forEach(element => {
-        element.textContent = name;
-    });
-
-
-    /* USER ROLE */
-
-    const possibleRoleElements = document.querySelectorAll(
-        "#userRole, .user-role, [data-user-role]"
-    );
-
-    possibleRoleElements.forEach(element => {
-        element.textContent = capitalize(role);
-    });
-
-
-    /* AVATAR */
-
-    const avatarElements = document.querySelectorAll(
-        "#userAvatar, .avatar"
-    );
-
-    avatarElements.forEach(element => {
-
-        const firstLetter =
-            String(name).trim().charAt(0).toUpperCase() || "U";
-
-        element.textContent = firstLetter;
-    });
-
-
-    /* ADMIN NAVIGATION */
-
-    document.querySelectorAll(".admin-only").forEach(element => {
-
-        if (isAdminUser()) {
-
-            element.style.display = "";
-
-        }
-
-        else {
-
-            element.style.display = "none";
-        }
-    });
-
-
-    /* ADMIN SECTION PROTECTION */
-
-    const adminSection = $("admin");
-
-    if (adminSection && !isAdminUser()) {
-
-        adminSection.classList.remove("active");
-    }
 }
 
 
 /* ============================================================
-   CHECK CURRENT USER
+   ADMIN MENU
 ============================================================ */
 
-async function checkCurrentUser() {
+function showAdminMenu() {
 
-    try {
+    document
+        .querySelectorAll(".admin-only")
+        .forEach(element => {
 
-        const response = await fetch("/api/me", {
-            method: "GET",
-            credentials: "include"
+            element.style.display =
+                "flex";
+
         });
 
-
-        const data = await response.json();
-
-
-        console.log("API ME RESPONSE:", data);
+}
 
 
-        let user = null;
+function hideAdminMenu() {
 
+    document
+        .querySelectorAll(".admin-only")
+        .forEach(element => {
 
-        if (data.user) {
+            element.style.display =
+                "none";
 
-            user = data.user;
-        }
+        });
 
-        else if (
-            data.data &&
-            data.data.user
-        ) {
-
-            user = data.data.user;
-        }
-
-        else if (
-            data.authenticated === true &&
-            data.email
-        ) {
-
-            user = data;
-        }
-
-        else if (
-            data.logged_in === true &&
-            data.email
-        ) {
-
-            user = data;
-        }
-
-        else if (
-            data.is_authenticated === true &&
-            data.email
-        ) {
-
-            user = data;
-        }
-
-
-        if (user) {
-
-            currentUser = user;
-
-            setAppVisible(true);
-
-            updateUserUI();
-
-            await loadApplicationData();
-
-            return true;
-        }
-
-
-        currentUser = null;
-
-        setAppVisible(false);
-
-        return false;
-
-    }
-
-    catch (error) {
-
-        console.error("API ME ERROR:", error);
-
-        currentUser = null;
-
-        setAppVisible(false);
-
-        return false;
-    }
 }
 
 
 /* ============================================================
-   LOGIN MODAL
+   SECTION NAVIGATION
 ============================================================ */
 
-function showLogin() {
-
-    const registerModal = $("registerModal");
-    const loginModal = $("loginModal");
-
-    if (registerModal) {
-        registerModal.classList.remove("active", "show");
-        registerModal.style.display = "none";
-    }
-
-    if (loginModal) {
-
-        loginModal.classList.add("active");
-
-        loginModal.style.display = "flex";
-
-        setTimeout(() => {
-
-            const email = $("loginEmail");
-
-            if (email) {
-                email.focus();
-            }
-
-        }, 100);
-    }
-}
-
-
-/* ============================================================
-   REGISTER MODAL
-============================================================ */
-
-function showRegister() {
-
-    const loginModal = $("loginModal");
-    const registerModal = $("registerModal");
-
-    if (loginModal) {
-
-        loginModal.classList.remove("active", "show");
-
-        loginModal.style.display = "none";
-    }
-
-    if (registerModal) {
-
-        registerModal.classList.add("active");
-
-        registerModal.style.display = "flex";
-
-        setTimeout(() => {
-
-            const name = $("registerName");
-
-            if (name) {
-                name.focus();
-            }
-
-        }, 100);
-    }
-}
-
-
-/* ============================================================
-   CLOSE MODAL
-============================================================ */
-
-function closeModal(modalId) {
-
-    const modal = $(modalId);
-
-    if (!modal) {
-        return;
-    }
-
-    modal.classList.remove("active", "show");
-
-    modal.style.display = "none";
-}
-
-
-/* ============================================================
-   PASSWORD TOGGLE
-============================================================ */
-
-function togglePassword(inputId) {
-
-    const input = $(inputId);
-
-    if (!input) {
-        return;
-    }
-
-    input.type =
-        input.type === "password"
-            ? "text"
-            : "password";
-}
-
-
-function toggleRegisterPassword() {
-
-    togglePassword("registerPassword");
-}
-
-
-/* ============================================================
-   LOGIN
-============================================================ */
-
-async function handleLogin(event) {
-
-    if (event) {
-        event.preventDefault();
-    }
-
-
-    const emailInput = $("loginEmail");
-
-    const passwordInput = $("loginPassword");
-
-
-    if (!emailInput || !passwordInput) {
-
-        showToast(
-            "Login form not found.",
-            "error"
-        );
-
-        return;
-    }
-
-
-    const email = emailInput.value.trim();
-
-    const password = passwordInput.value;
-
-
-    if (!email || !password) {
-
-        showToast(
-            "Please enter email and password.",
-            "warning"
-        );
-
-        return;
-    }
-
-
-    const submitButton =
-        document.querySelector("#loginForm button[type='submit']");
-
-
-    if (submitButton) {
-
-        submitButton.disabled = true;
-
-        submitButton.dataset.oldText =
-            submitButton.textContent;
-
-        submitButton.textContent = "Logging in...";
-    }
-
-
-    try {
-
-        const data = await apiRequest(
-            "/api/login",
-            {
-                method: "POST",
-                body: {
-                    email: email,
-                    password: password
-                }
-            }
-        );
-
-
-        console.log("LOGIN RESPONSE:", data);
-
-
-        let user =
-            data.user ||
-            data.data?.user ||
-            null;
-
-
-        if (!user && data.email) {
-            user = data;
-        }
-
-
-        if (!user) {
-
-            /*
-               Some backends return only success=true.
-               In that case /api/me gives the actual user.
-            */
-
-            await checkCurrentUser();
-
-            if (!currentUser) {
-
-                throw new Error(
-                    data.message ||
-                    "Login failed."
-                );
-            }
-        }
-
-        else {
-
-            currentUser = user;
-
-            setAppVisible(true);
-
-            updateUserUI();
-
-            await loadApplicationData();
-        }
-
-
-        closeModal("loginModal");
-
-
-        if (emailInput) {
-            emailInput.value = "";
-        }
-
-        if (passwordInput) {
-            passwordInput.value = "";
-        }
-
-
-        showToast(
-            data.message || "Login successful!",
-            "success"
-        );
-
-
-        showSection("dashboard");
-
-
-    }
-
-    catch (error) {
-
-        console.error("LOGIN ERROR:", error);
-
-        showToast(
-            error.message || "Login failed.",
-            "error"
-        );
-    }
-
-
-    finally {
-
-        if (submitButton) {
-
-            submitButton.disabled = false;
-
-            submitButton.textContent =
-                submitButton.dataset.oldText ||
-                "Login";
-        }
-    }
-}
-
-
-/* ============================================================
-   REGISTER
-============================================================ */
-
-async function handleRegister(event) {
-
-    if (event) {
-        event.preventDefault();
-    }
-
-
-    const nameInput = $("registerName");
-    const emailInput = $("registerEmail");
-    const roleInput = $("registerRole");
-    const passwordInput = $("registerPassword");
-
-
-    if (
-        !nameInput ||
-        !emailInput ||
-        !passwordInput
-    ) {
-
-        showToast(
-            "Registration form not found.",
-            "error"
-        );
-
-        return;
-    }
-
-
-    const name = nameInput.value.trim();
-
-    const email = emailInput.value.trim();
-
-    const role =
-        roleInput?.value ||
-        "student";
-
-    const password =
-        passwordInput.value;
-
-
-    if (!name || !email || !password) {
-
-        showToast(
-            "Please fill all required fields.",
-            "warning"
-        );
-
-        return;
-    }
-
-
-    if (password.length < 6) {
-
-        showToast(
-            "Password must contain at least 6 characters.",
-            "warning"
-        );
-
-        return;
-    }
-
-
-    const submitButton =
-        document.querySelector(
-            "#registerForm button[type='submit']"
-        );
-
-
-    if (submitButton) {
-
-        submitButton.disabled = true;
-
-        submitButton.dataset.oldText =
-            submitButton.textContent;
-
-        submitButton.textContent =
-            "Creating account...";
-    }
-
-
-    try {
-
-        const data = await apiRequest(
-            "/api/register",
-            {
-                method: "POST",
-
-                body: {
-                    name: name,
-                    email: email,
-                    role: role,
-                    password: password
-                }
-            }
-        );
-
-
-        console.log(
-            "REGISTER RESPONSE:",
-            data
-        );
-
-
-        showToast(
-            data.message ||
-            "Registration successful. Please login.",
-            "success"
-        );
-
-
-        closeModal("registerModal");
-
-        showLogin();
-
-
-        if ($("loginEmail")) {
-            $("loginEmail").value = email;
-        }
-
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "REGISTER ERROR:",
-            error
-        );
-
-        showToast(
-            error.message ||
-            "Registration failed.",
-            "error"
-        );
-    }
-
-
-    finally {
-
-        if (submitButton) {
-
-            submitButton.disabled = false;
-
-            submitButton.textContent =
-                submitButton.dataset.oldText ||
-                "Register";
-        }
-    }
-}
-
-
-/* ============================================================
-   LOGOUT
-============================================================ */
-
-async function logoutUser() {
-
-    if (isLoggingOut) {
-        return;
-    }
-
-    isLoggingOut = true;
-
-
-    try {
-
-        await apiRequest(
-            "/api/logout",
-            {
-                method: "POST"
-            }
-        );
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "LOGOUT ERROR:",
-            error
-        );
-    }
-
-
-    currentUser = null;
-
-    allReports = [];
-    allMatches = [];
-    allNotifications = [];
-    allAdminClaims = [];
-    allAdminUsers = [];
-
-
-    setAppVisible(false);
-
-
-    showToast(
-        "Logged out successfully.",
-        "success"
-    );
-
-
-    isLoggingOut = false;
-}
-
-
-/* ============================================================
-   SHOW SECTION
-============================================================ */
-
-function showSection(sectionId) {
-
-    console.log(
-        "Opening section:",
-        sectionId
-    );
-
+function showSection(sectionName) {
 
     if (!currentUser) {
 
         showLogin();
 
+        showToast(
+            "Please login first.",
+            "error"
+        );
+
         return;
+
     }
 
-
     if (
-        sectionId === "admin" &&
+        sectionName === "admin" &&
         !isAdminUser()
     ) {
 
@@ -1030,87 +511,104 @@ function showSection(sectionId) {
         );
 
         return;
+
     }
 
+    document
+        .querySelectorAll(".section")
+        .forEach(section => {
 
-    document.querySelectorAll(".section").forEach(section => {
+            section.classList.remove("active");
 
-        section.classList.remove("active");
+            section.style.display =
+                "none";
 
-    });
+        });
+
+    const section =
+        getElement(sectionName);
+
+    if (!section) return;
+
+    section.classList.add("active");
+
+    section.style.display =
+        "block";
+
+    document
+        .querySelectorAll(".nav-item")
+        .forEach(button => {
+
+            button.classList.remove("active");
+
+        });
+
+    document
+        .querySelectorAll(".nav-item")
+        .forEach(button => {
+
+            const onclick =
+                button.getAttribute("onclick") || "";
+
+            if (
+                onclick.includes(
+                    `showSection('${sectionName}')`
+                )
+            ) {
+
+                button.classList.add("active");
+
+            }
+
+        });
 
 
-    const target = $(sectionId);
+    /* Section-specific refresh */
 
-
-    if (!target) {
-
-        console.error(
-            "Section not found:",
-            sectionId
-        );
-
-        return;
-    }
-
-
-    target.classList.add("active");
-
-
-    document.querySelectorAll(".nav-item").forEach(item => {
-
-        item.classList.remove("active");
-
-    });
-
-
-    const navButton =
-        document.querySelector(
-            `.nav-item[data-section="${sectionId}"]`
-        );
-
-
-    if (navButton) {
-
-        navButton.classList.add("active");
-    }
-
-
-    if (sectionId === "dashboard") {
+    if (sectionName === "dashboard") {
 
         loadReports();
+
     }
 
-    else if (sectionId === "lost") {
+    if (sectionName === "lost") {
 
-        loadLostReports();
+        loadReports();
+
     }
 
-    else if (sectionId === "found") {
+    if (sectionName === "found") {
 
-        loadFoundReports();
+        loadReports();
+
     }
 
-    else if (sectionId === "ai") {
+    if (sectionName === "ai") {
 
-        loadAIMatches();
+        loadMatches();
+
     }
 
-    else if (sectionId === "notifications") {
+    if (sectionName === "notifications") {
 
         loadNotifications();
+
     }
 
-    else if (sectionId === "admin") {
+    if (sectionName === "admin") {
 
-        loadAdminPanel();
+        if (!isAdminUser()) return;
+
+        loadAdminReports();
+
+        loadAdminClaims();
+
+        loadAdminUsers();
+
+        refreshAdminStats();
+
     }
 
-
-    window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
 }
 
 
@@ -1120,31 +618,159 @@ function showSection(sectionId) {
 
 function openReport(type) {
 
-    showSection("report");
+    if (!currentUser) {
 
+        showLogin();
 
-    const itemType = $("item_type");
+        return;
 
+    }
+
+    const itemType =
+        getElement("item_type");
 
     if (itemType) {
 
-        itemType.value = type || "lost";
+        itemType.value =
+            type;
+
     }
 
+    showSection("report");
 
-    const reportHeading =
-        document.querySelector(
-            "#report .page-heading h1"
-        );
+}
 
 
-    if (reportHeading) {
+/* ============================================================
+   REPORT FORM
+============================================================ */
 
-        reportHeading.textContent =
-            type === "found"
-                ? "Report Found Item"
-                : "Report Lost Item";
-    }
+function setupReportForm() {
+
+    const form =
+        getElement("reportForm");
+
+    if (!form) return;
+
+    form.addEventListener(
+        "submit",
+        async function (event) {
+
+            event.preventDefault();
+
+            if (!currentUser) {
+
+                showLogin();
+
+                return;
+
+            }
+
+            const submitButton =
+                form.querySelector(
+                    'button[type="submit"]'
+                );
+
+            if (submitButton) {
+
+                submitButton.disabled =
+                    true;
+
+                submitButton.textContent =
+                    "Submitting...";
+
+            }
+
+            try {
+
+                const formData =
+                    new FormData(form);
+
+                const itemType =
+                    getElement("item_type")?.value
+                    || "";
+
+                formData.set(
+                    "report_type",
+                    itemType
+                );
+
+                const result =
+                    await apiRequest(
+                        "/reports",
+                        {
+                            method: "POST",
+                            body: formData
+                        }
+                    );
+
+                if (
+                    !result ||
+                    result.success === false
+                ) {
+
+                    throw new Error(
+                        result?.message ||
+                        "Could not submit report."
+                    );
+
+                }
+
+                showToast(
+                    result.message ||
+                    "Report submitted successfully.",
+                    "success"
+                );
+
+                form.reset();
+
+                const preview =
+                    getElement("imagePreview");
+
+                if (preview) {
+
+                    preview.innerHTML = "";
+
+                }
+
+                await loadReports();
+
+                await loadMatches();
+
+                await loadNotifications();
+
+                showSection("dashboard");
+
+            } catch (error) {
+
+                console.error(
+                    "Report submit error:",
+                    error
+                );
+
+                showToast(
+                    error.message ||
+                    "Failed to submit report.",
+                    "error"
+                );
+
+            } finally {
+
+                if (submitButton) {
+
+                    submitButton.disabled =
+                        false;
+
+                    submitButton.textContent =
+                        "Submit Report";
+
+                }
+
+            }
+
+        }
+    );
+
 }
 
 
@@ -1152,237 +778,200 @@ function openReport(type) {
    IMAGE PREVIEW
 ============================================================ */
 
-function previewImage(event) {
+function setupImagePreview() {
 
-    const file =
-        event?.target?.files?.[0];
+    const input =
+        getElement("image");
 
     const preview =
-        $("imagePreview");
+        getElement("imagePreview");
 
+    if (!input || !preview) return;
 
-    if (!preview) {
-        return;
-    }
+    input.addEventListener(
+        "change",
+        function () {
 
+            preview.innerHTML = "";
 
-    if (!file) {
+            const file =
+                input.files?.[0];
 
-        preview.innerHTML = "";
+            if (!file) return;
 
-        return;
-    }
+            if (!file.type.startsWith("image/")) {
 
+                showToast(
+                    "Please select an image file.",
+                    "error"
+                );
 
-    if (!file.type.startsWith("image/")) {
+                input.value = "";
 
-        preview.innerHTML = "";
+                return;
 
-        showToast(
-            "Please select an image file.",
-            "error"
-        );
+            }
 
-        event.target.value = "";
+            if (
+                file.size >
+                10 * 1024 * 1024
+            ) {
 
-        return;
-    }
+                showToast(
+                    "Image must be smaller than 10 MB.",
+                    "error"
+                );
 
+                input.value = "";
 
-    if (file.size > 10 * 1024 * 1024) {
+                return;
 
-        preview.innerHTML = "";
+            }
 
-        showToast(
-            "Image size must be below 10 MB.",
-            "error"
-        );
+            const reader =
+                new FileReader();
 
-        event.target.value = "";
+            reader.onload =
+                function (event) {
 
-        return;
-    }
+                    const img =
+                        document.createElement("img");
 
+                    img.src =
+                        event.target.result;
 
-    const reader = new FileReader();
+                    img.alt =
+                        "Selected item image";
 
+                    img.style.maxWidth =
+                        "100%";
 
-    reader.onload = function(e) {
+                    img.style.maxHeight =
+                        "260px";
 
-        preview.innerHTML = `
-            <img
-                src="${e.target.result}"
-                alt="Selected image"
-            >
-        `;
-    };
+                    img.style.objectFit =
+                        "contain";
 
+                    preview.appendChild(img);
 
-    reader.readAsDataURL(file);
+                };
+
+            reader.readAsDataURL(file);
+
+        }
+    );
+
 }
 
 
 /* ============================================================
-   SUBMIT REPORT
+   IMAGE URL
 ============================================================ */
 
-async function handleReportSubmit(event) {
+function getImageUrl(image) {
 
-    if (event) {
-        event.preventDefault();
-    }
+    if (!image) return "";
 
+    image =
+        String(image).trim();
 
-    if (!currentUser) {
-
-        showLogin();
-
-        return;
-    }
-
-
-    const form = $("reportForm");
-
-
-    if (!form) {
-        return;
-    }
-
-
-    const formData =
-        new FormData(form);
-
-
-    const imageInput = $("image");
-
+    if (!image) return "";
 
     if (
-        imageInput &&
-        imageInput.files &&
-        imageInput.files[0]
+        /^https?:\/\//i.test(image)
     ) {
 
-        const file =
-            imageInput.files[0];
-
-        if (file.size > 10 * 1024 * 1024) {
-
-            showToast(
-                "Image must be below 10 MB.",
-                "error"
-            );
-
-            return;
-        }
-    }
-
-
-    const submitButton =
-        form.querySelector(
-            "button[type='submit']"
-        );
-
-
-    if (submitButton) {
-
-        submitButton.disabled = true;
-
-        submitButton.dataset.oldText =
-            submitButton.textContent;
-
-        submitButton.textContent =
-            "Submitting...";
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/reports",
-                {
-                    method: "POST",
-
-                    credentials: "include",
-
-                    body: formData
-                }
-            );
-
-
-        let data = {};
-
-        try {
-            data = await response.json();
-        }
-
-        catch (error) {
-            data = {};
-        }
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.message ||
-                data.error ||
-                "Unable to submit report."
-            );
-        }
-
-
-        showToast(
-            data.message ||
-            "Report submitted successfully!",
-            "success"
-        );
-
-
-        form.reset();
-
-
-        const preview =
-            $("imagePreview");
-
-        if (preview) {
-            preview.innerHTML = "";
-        }
-
-
-        await loadReports();
-
-
-        showSection("dashboard");
-
+        return image;
 
     }
 
-    catch (error) {
+    if (
+        image.startsWith("/uploads/")
+    ) {
 
-        console.error(
-            "REPORT SUBMIT ERROR:",
-            error
-        );
+        return image;
 
-        showToast(
-            error.message ||
-            "Failed to submit report.",
-            "error"
-        );
     }
 
+    if (
+        image.startsWith("/")
+    ) {
 
-    finally {
+        return image;
 
-        if (submitButton) {
-
-            submitButton.disabled = false;
-
-            submitButton.textContent =
-                submitButton.dataset.oldText ||
-                "Submit Report";
-        }
     }
+
+    return `/uploads/${image}`;
+
+}
+
+
+/* ============================================================
+   NORMALIZE REPORT
+============================================================ */
+
+function normalizeReport(report) {
+
+    if (!report) return null;
+
+    const type =
+        String(
+            report.report_type ||
+            report.item_type ||
+            report.type ||
+            ""
+        ).toLowerCase();
+
+    return {
+
+        ...report,
+
+        id:
+            report.id ??
+            report.report_id,
+
+        report_type:
+            type,
+
+        item_type:
+            type,
+
+        item_name:
+            report.item_name ||
+            "Unnamed Item",
+
+        category:
+            report.category ||
+            "Other",
+
+        location:
+            report.location ||
+            "Unknown",
+
+        description:
+            report.description ||
+            "",
+
+        image:
+            report.image ||
+            "",
+
+        report_date:
+            report.report_date ||
+            report.date ||
+            "",
+
+        report_time:
+            report.report_time ||
+            report.time ||
+            "",
+
+        user_id:
+            report.user_id ??
+            report.owner_id
+
+    };
+
 }
 
 
@@ -1396,260 +985,68 @@ async function loadReports() {
 
         const data =
             await apiRequest(
-                "/api/reports",
+                "/reports",
                 {
                     method: "GET"
                 }
             );
 
+        let reports = [];
 
-        allReports = getArray(
-            data,
-            [
-                "reports",
-                "data",
-                "items"
-            ]
-        );
+        if (Array.isArray(data)) {
 
+            reports = data;
 
-        renderReports(
-            $("recentReports"),
-            allReports
-        );
+        } else if (
+            Array.isArray(data?.reports)
+        ) {
 
+            reports =
+                data.reports;
 
-        renderReports(
-            $("lostReports"),
-            allReports.filter(
-                report =>
-                    String(
-                        report.report_type ||
-                        report.type ||
-                        report.item_type ||
-                        ""
-                    ).toLowerCase() === "lost"
-            )
-        );
+        } else if (
+            Array.isArray(data?.data)
+        ) {
 
+            reports =
+                data.data;
 
-        renderReports(
-            $("foundReports"),
-            allReports.filter(
-                report =>
-                    String(
-                        report.report_type ||
-                        report.type ||
-                        report.item_type ||
-                        ""
-                    ).toLowerCase() === "found"
-            )
-        );
+        }
 
+        allReports =
+            reports
+                .map(normalizeReport)
+                .filter(Boolean);
 
-        updateDashboardCounts();
+        renderRecentReports();
 
+        renderLostReports();
 
-    }
+        renderFoundReports();
 
-    catch (error) {
+        updateDashboardStats();
+
+        return allReports;
+
+    } catch (error) {
 
         console.error(
-            "LOAD REPORTS ERROR:",
+            "Load reports error:",
             error
         );
 
-
         allReports = [];
 
+        renderRecentReports();
 
-        renderReports(
-            $("recentReports"),
-            []
-        );
+        renderLostReports();
 
-        renderReports(
-            $("lostReports"),
-            []
-        );
+        renderFoundReports();
 
-        renderReports(
-            $("foundReports"),
-            []
-        );
-    }
-}
+        return [];
 
-
-/* ============================================================
-   LOAD LOST
-============================================================ */
-
-async function loadLostReports() {
-
-    await loadReports();
-
-    showSectionWithoutReload("lost");
-}
-
-
-/* ============================================================
-   LOAD FOUND
-============================================================ */
-
-async function loadFoundReports() {
-
-    await loadReports();
-
-    showSectionWithoutReload("found");
-}
-
-
-/* ============================================================
-   SHOW SECTION WITHOUT RELOAD
-============================================================ */
-
-function showSectionWithoutReload(sectionId) {
-
-    document.querySelectorAll(".section").forEach(section => {
-
-        section.classList.remove("active");
-
-    });
-
-
-    const target = $(sectionId);
-
-    if (target) {
-        target.classList.add("active");
-    }
-}
-
-
-/* ============================================================
-   UPDATE DASHBOARD COUNTS
-============================================================ */
-
-function updateDashboardCounts() {
-
-    const lostCount =
-        allReports.filter(
-            report =>
-                String(
-                    report.report_type ||
-                    report.type ||
-                    report.item_type ||
-                    ""
-                ).toLowerCase() === "lost"
-        ).length;
-
-
-    const foundCount =
-        allReports.filter(
-            report =>
-                String(
-                    report.report_type ||
-                    report.type ||
-                    report.item_type ||
-                    ""
-                ).toLowerCase() === "found"
-        ).length;
-
-
-    const totalElements =
-        document.querySelectorAll(
-            "[data-report-count]"
-        );
-
-
-    totalElements.forEach(element => {
-
-        const type =
-            element.dataset.reportCount;
-
-        if (type === "lost") {
-            element.textContent = lostCount;
-        }
-
-        else if (type === "found") {
-            element.textContent = foundCount;
-        }
-
-        else {
-            element.textContent =
-                allReports.length;
-        }
-    });
-}
-
-
-/* ============================================================
-   RENDER REPORTS
-============================================================ */
-
-function renderReports(container, reports) {
-
-    if (!container) {
-        return;
     }
 
-
-    if (!reports || reports.length === 0) {
-
-        container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon">📦</div>
-                <h3>No items found</h3>
-                <p>There are no reports to display.</p>
-            </div>
-        `;
-
-        return;
-    }
-
-
-    container.innerHTML =
-        reports
-            .map(report => createReportCard(report))
-            .join("");
-}
-
-
-/* ============================================================
-   GET REPORT IMAGE
-============================================================ */
-
-function getReportImage(report) {
-
-    const image =
-        report.image ||
-        report.image_url ||
-        report.photo ||
-        "";
-
-
-    if (!image) {
-        return "";
-    }
-
-
-    if (
-        image.startsWith("http://") ||
-        image.startsWith("https://") ||
-        image.startsWith("data:")
-    ) {
-
-        return image;
-    }
-
-
-    if (image.startsWith("/")) {
-
-        return image;
-    }
-
-
-    return `/uploads/${image}`;
 }
 
 
@@ -1659,1210 +1056,518 @@ function getReportImage(report) {
 
 function createReportCard(report) {
 
-    const id =
-        report.id ||
-        report.report_id;
-
-
     const type =
         String(
             report.report_type ||
-            report.type ||
             report.item_type ||
-            "lost"
+            ""
         ).toLowerCase();
 
+    const isFound =
+        type === "found";
 
-    const itemName =
-        report.item_name ||
-        report.name ||
-        report.title ||
-        "Unnamed Item";
+    const imageUrl =
+        getImageUrl(report.image);
 
+    const imageHTML =
+        imageUrl
+            ? `
+                <div class="report-image">
+                    <img
+                        src="${escapeHTML(imageUrl)}"
+                        alt="${escapeHTML(report.item_name)}"
+                        loading="lazy"
+                        onerror="this.parentElement.style.display='none';">
+                </div>
+              `
+            : `
+                <div class="report-image report-no-image">
+                    ${isFound ? "📦" : "🔍"}
+                </div>
+              `;
 
-    const category =
-        report.category ||
-        "Other";
-
-
-    const location =
-        report.location ||
-        "Unknown location";
-
-
-    const description =
-        report.description ||
-        "No description provided.";
-
-
-    const date =
-        report.report_date ||
-        report.item_date ||
-        report.date;
-
-
-    const time =
-        report.report_time ||
-        report.item_time ||
-        report.time;
-
-
-    const status =
-        report.status ||
-        "pending";
-
-
-    const image =
-        getReportImage(report);
-
-
-    const isOwn =
+    const ownReport =
         currentUser &&
-        (
-            String(
-                report.user_id ||
-                ""
-            ) === String(
-                currentUser.id ||
-                ""
-            )
+        String(report.user_id) ===
+        String(
+            currentUser.id ||
+            currentUser.user_id
         );
 
-
-    const canClaim =
-        type === "found" &&
-        !isOwn;
-
+    const claimButton =
+        isFound &&
+        !ownReport
+            ? `
+                <button
+                    type="button"
+                    class="claim-btn"
+                    onclick="openClaimModal(${Number(report.id)})">
+                    📦 Claim This Item
+                </button>
+              `
+            : "";
 
     return `
-        <article class="report-card">
 
-            <div class="report-card-image">
+        <div class="report-card">
 
-                ${
-                    image
-                    ?
-                    `
-                    <img
-                        src="${escapeHTML(image)}"
-                        alt="${escapeHTML(itemName)}"
-                        loading="lazy"
-                        onerror="this.style.display='none';"
-                    >
-                    `
-                    :
-                    `
-                    <div class="report-no-image">
-                        📦
-                    </div>
-                    `
-                }
+            ${imageHTML}
 
-            </div>
+            <div class="report-card-content">
 
+                <div class="report-card-top">
 
-            <div class="report-card-body">
+                    <span class="report-type ${isFound ? "found" : "lost"}">
 
-                <span class="report-type ${type}">
-                    ${capitalize(type)}
-                </span>
+                        ${isFound ? "📦 Found" : "🔍 Lost"}
 
+                    </span>
 
-                <div class="report-card-header">
+                    <span class="report-category">
 
-                    <h3 class="report-card-title">
-                        ${escapeHTML(itemName)}
-                    </h3>
+                        ${escapeHTML(
+                            capitalize(report.category)
+                        )}
 
-                    <span class="status-badge ${escapeHTML(status)}">
-                        ${escapeHTML(status)}
                     </span>
 
                 </div>
+
+
+                <h3>
+
+                    ${escapeHTML(
+                        report.item_name
+                    )}
+
+                </h3>
+
+
+                <p class="report-location">
+
+                    📍
+                    ${escapeHTML(
+                        report.location
+                    )}
+
+                </p>
+
+
+                <p class="report-description">
+
+                    ${escapeHTML(
+                        report.description ||
+                        "No description provided."
+                    )}
+
+                </p>
 
 
                 <div class="report-meta">
 
                     <span>
-                        📁 ${escapeHTML(category)}
+                        📅
+                        ${escapeHTML(
+                            report.report_date
+                        )}
                     </span>
 
-                    <span>
-                        📍 ${escapeHTML(location)}
-                    </span>
+                    ${
+                        report.report_time
+                            ? `
+                                <span>
+                                    🕐
+                                    ${escapeHTML(
+                                        report.report_time
+                                    )}
+                                </span>
+                              `
+                            : ""
+                    }
 
                 </div>
 
 
-                <p class="report-card-description">
-                    ${escapeHTML(description)}
-                </p>
-
-
-                ${
-                    date
-                    ?
-                    `
-                    <div class="report-meta">
-
-                        <span>
-                            📅 ${escapeHTML(
-                                formatDate(date)
-                            )}
-                        </span>
-
-                        ${
-                            time
-                            ?
-                            `
-                            <span>
-                                🕐 ${escapeHTML(
-                                    formatTime(time)
-                                )}
-                            </span>
-                            `
-                            :
-                            ""
-                        }
-
-                    </div>
-                    `
-                    :
-                    ""
-                }
-
-
-                ${
-                    canClaim
-                    ?
-                    `
-                    <button
-                        class="claim-btn"
-                        type="button"
-                        onclick="openClaimModal(${Number(id)})"
-                    >
-                        Claim Item
-                    </button>
-                    `
-                    :
-                    ""
-                }
+                ${claimButton}
 
             </div>
 
-        </article>
-    `;
-}
-/* ============================================================
-   AI MATCHING
-   CampusFind Lost & Found AI
-============================================================ */
-
-async function loadAIMatches() {
-
-    const container = $("aiMatches");
-
-    if (!container) {
-        console.error("AI matches container #aiMatches not found.");
-        return;
-    }
-
-    container.innerHTML = `
-        <div class="loading-state ai-loading">
-            <div class="ai-loading-icon">🤖</div>
-            <h3>CampusFind AI is analyzing...</h3>
-            <p>Comparing lost and found items</p>
         </div>
+
     `;
 
-    try {
-
-        console.log("AI MATCH: Sending request to /api/matches");
-
-        const data = await apiRequest(
-            "/api/matches",
-            {
-                method: "GET",
-                cache: "no-store"
-            }
-        );
-
-        console.log("AI MATCH API RESPONSE:", data);
-
-        const matches = getArray(
-            data,
-            [
-                "matches",
-                "data",
-                "results"
-            ]
-        );
-
-        allMatches = matches;
-
-        window.campusFindMatches = matches;
-
-        console.log(
-            "AI MATCHES FOUND:",
-            matches.length
-        );
-
-        renderAIMatches(matches);
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "AI MATCH ERROR:",
-            error
-        );
-
-        allMatches = [];
-
-        container.innerHTML = `
-            <div class="empty-state">
-
-                <div class="empty-icon">
-                    ⚠️
-                </div>
-
-                <h3>
-                    AI Matching Unavailable
-                </h3>
-
-                <p>
-                    ${escapeHTML(
-                        error.message ||
-                        "Unable to analyze possible matches."
-                    )}
-                </p>
-
-                <button
-                    type="button"
-                    onclick="loadAIMatches()"
-                    class="retry-ai-button"
-                >
-                    🔄 Try Again
-                </button>
-
-            </div>
-        `;
-    }
 }
 
 
 /* ============================================================
-   RENDER AI MATCHES
+   RENDER RECENT
 ============================================================ */
 
-function renderAIMatches(matches) {
+function renderRecentReports() {
 
-    const container = $("aiMatches");
-
-    if (!container) {
-        return;
-    }
-
-    if (!matches || matches.length === 0) {
-
-        container.innerHTML = `
-            <div class="empty-state ai-empty-state">
-
-                <div class="empty-icon">
-                    🤖
-                </div>
-
-                <h3>
-                    No Possible Matches Yet
-                </h3>
-
-                <p>
-                    CampusFind AI could not find a
-                    possible match yet.
-                </p>
-
-                <div class="ai-tip-box">
-
-                    <strong>
-                        💡 For better matching
-                    </strong>
-
-                    <ul>
-                        <li>Add the correct item name</li>
-                        <li>Select the correct category</li>
-                        <li>Enter the exact location</li>
-                        <li>Add useful item details</li>
-                        <li>Upload a clear item image</li>
-                    </ul>
-
-                </div>
-
-            </div>
-        `;
-
-        return;
-    }
-
-
-    container.innerHTML = matches.map(
-        (match, index) => {
-
-            const lost =
-                match.lost || {};
-
-            const found =
-                match.found || {};
-
-
-            const lostName =
-                lost.item_name ||
-                lost.name ||
-                "Lost Item";
-
-
-            const foundName =
-                found.item_name ||
-                found.name ||
-                "Found Item";
-
-
-            const lostCategory =
-                lost.category ||
-                "Other";
-
-
-            const foundCategory =
-                found.category ||
-                "Other";
-
-
-            const lostLocation =
-                lost.location ||
-                "Unknown";
-
-
-            const foundLocation =
-                found.location ||
-                "Unknown";
-
-
-            const lostDescription =
-                lost.description ||
-                "No description provided.";
-
-
-            const foundDescription =
-                found.description ||
-                "No description provided.";
-
-
-            const score = Math.max(
-                0,
-                Math.min(
-                    100,
-                    Number(
-                        match.match_score ??
-                        match.score ??
-                        match.confidence ??
-                        0
-                    )
-                )
-            );
-
-
-            let matchLevel =
-                "Possible Match";
-
-            if (score >= 80) {
-
-                matchLevel =
-                    "Strong Match";
-
-            }
-
-            else if (score >= 50) {
-
-                matchLevel =
-                    "Good Match";
-            }
-
-
-            /* =========================
-               IMAGE
-            ========================= */
-
-            const lostImage =
-                getReportImage(lost);
-
-
-            const foundImage =
-                getReportImage(found);
-
-
-            const lostImageHTML =
-                lostImage
-
-                ? `
-                    <div class="ai-image-wrapper">
-
-                        <img
-                            src="${escapeHTML(
-                                lostImage
-                            )}"
-                            alt="${escapeHTML(
-                                lostName
-                            )}"
-                            class="ai-match-image"
-                            onerror="
-                                this.style.display='none';
-                            "
-                        >
-
-                    </div>
-                `
-
-                : `
-                    <div class="ai-image-wrapper no-image">
-                        📦
-                        <span>No Image</span>
-                    </div>
-                `;
-
-
-            const foundImageHTML =
-                foundImage
-
-                ? `
-                    <div class="ai-image-wrapper">
-
-                        <img
-                            src="${escapeHTML(
-                                foundImage
-                            )}"
-                            alt="${escapeHTML(
-                                foundName
-                            )}"
-                            class="ai-match-image"
-                            onerror="
-                                this.style.display='none';
-                            "
-                        >
-
-                    </div>
-                `
-
-                : `
-                    <div class="ai-image-wrapper no-image">
-                        📦
-                        <span>No Image</span>
-                    </div>
-                `;
-
-
-            /* =========================
-               MATCH REASONS
-            ========================= */
-
-            const reasons = [];
-
-
-            if (
-                String(lostCategory).toLowerCase() ===
-                String(foundCategory).toLowerCase()
-            ) {
-
-                reasons.push(
-                    "Same category"
-                );
-            }
-
-
-            if (
-                lostLocation &&
-                foundLocation &&
-                (
-                    String(lostLocation)
-                        .toLowerCase()
-                        .includes(
-                            String(foundLocation)
-                                .toLowerCase()
-                        ) ||
-                    String(foundLocation)
-                        .toLowerCase()
-                        .includes(
-                            String(lostLocation)
-                                .toLowerCase()
-                        )
-                )
-            ) {
-
-                reasons.push(
-                    "Similar location"
-                );
-            }
-
-
-            const lostWords =
-                String(lostName)
-                    .toLowerCase()
-                    .split(/\s+/);
-
-
-            const foundWords =
-                String(foundName)
-                    .toLowerCase()
-                    .split(/\s+/);
-
-
-            if (
-                lostWords.some(
-                    word =>
-                        word.length > 2 &&
-                        foundWords.includes(word)
-                )
-            ) {
-
-                reasons.push(
-                    "Similar item name"
-                );
-            }
-
-
-            if (
-                lostDescription &&
-                foundDescription
-            ) {
-
-                reasons.push(
-                    "Description analyzed"
-                );
-            }
-
-
-            if (
-                lostImage &&
-                foundImage
-            ) {
-
-                reasons.push(
-                    "Both items have images"
-                );
-            }
-
-
-            if (reasons.length === 0) {
-
-                reasons.push(
-                    "Multiple item details analyzed"
-                );
-            }
-
-
-            const reasonsHTML =
-                reasons
-                    .map(
-                        reason => `
-                            <span class="match-reason">
-                                ✓
-                                ${escapeHTML(
-                                    reason
-                                )}
-                            </span>
-                        `
-                    )
-                    .join("");
-
-
-            /* =========================
-               FOUND ITEM ID
-            ========================= */
-
-            const foundId =
-                found.id ||
-                found.report_id ||
-                "";
-
-
-            const claimButton =
-                foundId
-
-                ? `
-                    <button
-                        type="button"
-                        class="ai-claim-button"
-                        onclick="openClaimModal(${Number(foundId)})"
-                    >
-                        📦 Claim This Item
-                    </button>
-                `
-
-                : "";
-
-
-            /* =========================
-               CARD
-            ========================= */
-
-            return `
-
-                <div class="ai-match-card">
-
-                    <div class="ai-match-top">
-
-                        <div>
-
-                            <span class="ai-match-badge">
-                                🤖 AI POSSIBLE MATCH
-                            </span>
-
-                            <h3>
-                                ${escapeHTML(
-                                    lostName
-                                )}
-                                ↔
-                                ${escapeHTML(
-                                    foundName
-                                )}
-                            </h3>
-
-                            <p class="ai-confidence">
-                                ${matchLevel} Confidence
-                            </p>
-
-                        </div>
-
-
-                        <div class="ai-score-circle">
-
-                            <strong>
-                                ${score}%
-                            </strong>
-
-                            <span>
-                                Match
-                            </span>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="ai-comparison">
-
-
-                        <!-- LOST -->
-
-                        <div class="ai-item-card lost-item-card">
-
-                            <div class="ai-item-title">
-                                🔴 LOST ITEM
-                            </div>
-
-                            ${lostImageHTML}
-
-                            <h4>
-                                ${escapeHTML(
-                                    lostName
-                                )}
-                            </h4>
-
-                            <div class="ai-detail">
-                                📂
-                                <strong>Category</strong>
-                                <span>
-                                    ${escapeHTML(
-                                        lostCategory
-                                    )}
-                                </span>
-                            </div>
-
-                            <div class="ai-detail">
-                                📍
-                                <strong>Location</strong>
-                                <span>
-                                    ${escapeHTML(
-                                        lostLocation
-                                    )}
-                                </span>
-                            </div>
-
-                            <div class="ai-description">
-
-                                <strong>
-                                    📝 Description
-                                </strong>
-
-                                <p>
-                                    ${escapeHTML(
-                                        lostDescription
-                                    )}
-                                </p>
-
-                            </div>
-
-                        </div>
-
-
-                        <!-- AI CONNECTOR -->
-
-                        <div class="ai-match-connector">
-
-                            <div class="connector-line"></div>
-
-                            <div class="connector-icon">
-                                🤖
-                            </div>
-
-                            <span>
-                                AI
-                            </span>
-
-                            <div class="connector-line"></div>
-
-                        </div>
-
-
-                        <!-- FOUND -->
-
-                        <div class="ai-item-card found-item-card">
-
-                            <div class="ai-item-title">
-                                🟢 FOUND ITEM
-                            </div>
-
-                            ${foundImageHTML}
-
-                            <h4>
-                                ${escapeHTML(
-                                    foundName
-                                )}
-                            </h4>
-
-                            <div class="ai-detail">
-                                📂
-                                <strong>Category</strong>
-                                <span>
-                                    ${escapeHTML(
-                                        foundCategory
-                                    )}
-                                </span>
-                            </div>
-
-                            <div class="ai-detail">
-                                📍
-                                <strong>Location</strong>
-                                <span>
-                                    ${escapeHTML(
-                                        foundLocation
-                                    )}
-                                </span>
-                            </div>
-
-                            <div class="ai-description">
-
-                                <strong>
-                                    📝 Description
-                                </strong>
-
-                                <p>
-                                    ${escapeHTML(
-                                        foundDescription
-                                    )}
-                                </p>
-
-                            </div>
-
-                            ${claimButton}
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="ai-match-reasons">
-
-                        <h4>
-                            🔍 Why AI thinks this may match
-                        </h4>
-
-                        <div class="match-reasons-list">
-
-                            ${reasonsHTML}
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="ai-match-footer">
-
-                        <div>
-
-                            <span>
-                                🤖 AI Match Score
-                            </span>
-
-                            <strong>
-                                ${score}%
-                            </strong>
-
-                        </div>
-
-                        <div class="ai-progress">
-
-                            <div
-                                class="ai-progress-bar"
-                                style="width:${score}%"
-                            ></div>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            `;
-        }
-    ).join("");
-}
-
-// ============================================================
-// RENDER AI MATCHES
-// ============================================================
-
-function renderAIMatches(matches) {
-
-    const container = document.getElementById("aiMatches");
+    const container =
+        getElement("recentReports");
 
     if (!container) return;
 
-    if (!matches || matches.length === 0) {
+    const reports =
+        allReports.slice(0, 6);
+
+    if (!reports.length) {
 
         container.innerHTML = `
-            <div class="empty-state">
-                <div style="font-size:45px;">🤖</div>
 
-                <h3>No AI Matches Found</h3>
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    📋
+                </div>
+
+                <h3>
+                    No reports yet
+                </h3>
 
                 <p>
-                    No strong match was found between the
-                    reported lost and found items yet.
+                    Reports will appear here.
                 </p>
+
             </div>
+
         `;
 
         return;
+
     }
 
-    container.innerHTML = matches.map((match, index) => {
+    container.innerHTML =
+        reports
+            .map(createReportCard)
+            .join("");
 
-        // ----------------------------------------------------
-        // BACKEND STRUCTURE
-        // match.lost
-        // match.found
-        // match.score
-        // ----------------------------------------------------
+}
 
-        const lost = match.lost || {};
-        const found = match.found || {};
 
-        const lostName =
-            lost.item_name ||
-            "Unknown Lost Item";
+/* ============================================================
+   RENDER LOST
+============================================================ */
 
-        const foundName =
-            found.item_name ||
-            "Unknown Found Item";
+function renderLostReports() {
 
-        const lostCategory =
-            lost.category ||
-            "Not specified";
+    const container =
+        getElement("lostReports");
 
-        const foundCategory =
-            found.category ||
-            "Not specified";
+    if (!container) return;
 
-        const lostLocation =
-            lost.location ||
-            "Not specified";
-
-        const foundLocation =
-            found.location ||
-            "Not specified";
-
-        const lostDescription =
-            lost.description ||
-            "No description provided.";
-
-        const foundDescription =
-            found.description ||
-            "No description provided.";
-
-        const score = Number(
-            match.score ??
-            match.match_score ??
-            0
+    const reports =
+        allReports.filter(
+            report =>
+                String(
+                    report.report_type
+                ).toLowerCase() === "lost"
         );
 
-        const lostImage =
-            lost.image_url ||
-            lost.image ||
-            "";
+    if (!reports.length) {
 
-        const foundImage =
-            found.image_url ||
-            found.image ||
-            "";
+        container.innerHTML = `
 
-        // ----------------------------------------------------
-        // MATCH LEVEL
-        // ----------------------------------------------------
+            <div class="empty-state">
 
-        let matchLevel = "Possible Match";
-
-        if (score >= 80) {
-            matchLevel = "Strong Match";
-        } else if (score >= 50) {
-            matchLevel = "Good Match";
-        } else if (score >= 20) {
-            matchLevel = "Possible Match";
-        }
-
-        // ----------------------------------------------------
-        // IMAGE HTML
-        // ----------------------------------------------------
-
-        const lostImageHTML = lostImage
-            ? `
-                <img
-                    src="${escapeHTML(lostImage)}"
-                    alt="${escapeHTML(lostName)}"
-                    class="ai-match-image"
-                    onerror="this.style.display='none';"
-                >
-              `
-            : `
-                <div class="ai-no-image">
-                    📦
-                </div>
-              `;
-
-        const foundImageHTML = foundImage
-            ? `
-                <img
-                    src="${escapeHTML(foundImage)}"
-                    alt="${escapeHTML(foundName)}"
-                    class="ai-match-image"
-                    onerror="this.style.display='none';"
-                >
-              `
-            : `
-                <div class="ai-no-image">
-                    📦
-                </div>
-              `;
-
-        // ----------------------------------------------------
-        // RETURN CARD
-        // ----------------------------------------------------
-
-        return `
-            <div class="ai-match-card">
-
-                <!-- HEADER -->
-                <div class="ai-match-header">
-
-                    <div>
-                        <span class="ai-match-number">
-                            Match ${index + 1}
-                        </span>
-
-                        <h3>
-                            🤖 ${escapeHTML(matchLevel)}
-                        </h3>
-                    </div>
-
-                    <div class="ai-score">
-                        AI Match: ${score}%
-                    </div>
-
+                <div class="empty-icon">
+                    🔍
                 </div>
 
+                <h3>
+                    No lost items
+                </h3>
 
-                <!-- ITEMS -->
-                <div class="ai-match-items">
-
-                    <!-- LOST ITEM -->
-                    <div class="ai-item-box">
-
-                        <div class="ai-item-title">
-                            🔴 Lost Item
-                        </div>
-
-                        ${lostImageHTML}
-
-                        <h3>
-                            ${escapeHTML(lostName)}
-                        </h3>
-
-                        <p>
-                            <strong>Category:</strong>
-                            ${escapeHTML(lostCategory)}
-                        </p>
-
-                        <p>
-                            <strong>Location:</strong>
-                            ${escapeHTML(lostLocation)}
-                        </p>
-
-                        <p>
-                            <strong>Description:</strong>
-                            ${escapeHTML(lostDescription)}
-                        </p>
-
-                    </div>
-
-
-                    <!-- MATCH ARROW -->
-                    <div class="ai-match-arrow">
-                        <div>🤖</div>
-                        <span>Match</span>
-                        <strong>${score}%</strong>
-                    </div>
-
-
-                    <!-- FOUND ITEM -->
-                    <div class="ai-item-box">
-
-                        <div class="ai-item-title">
-                            🟢 Found Item
-                        </div>
-
-                        ${foundImageHTML}
-
-                        <h3>
-                            ${escapeHTML(foundName)}
-                        </h3>
-
-                        <p>
-                            <strong>Category:</strong>
-                            ${escapeHTML(foundCategory)}
-                        </p>
-
-                        <p>
-                            <strong>Location:</strong>
-                            ${escapeHTML(foundLocation)}
-                        </p>
-
-                        <p>
-                            <strong>Description:</strong>
-                            ${escapeHTML(foundDescription)}
-                        </p>
-
-                    </div>
-
-                </div>
+                <p>
+                    Lost item reports will appear here.
+                </p>
 
             </div>
+
         `;
 
-    }).join("");
+        return;
+
+    }
+
+    container.innerHTML =
+        reports
+            .map(createReportCard)
+            .join("");
+
 }
+
+
+/* ============================================================
+   RENDER FOUND
+============================================================ */
+
+function renderFoundReports() {
+
+    const container =
+        getElement("foundReports");
+
+    if (!container) return;
+
+    const reports =
+        allReports.filter(
+            report =>
+                String(
+                    report.report_type
+                ).toLowerCase() === "found"
+        );
+
+    if (!reports.length) {
+
+        container.innerHTML = `
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    📦
+                </div>
+
+                <h3>
+                    No found items
+                </h3>
+
+                <p>
+                    Found item reports will appear here.
+                </p>
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+    container.innerHTML =
+        reports
+            .map(createReportCard)
+            .join("");
+
+}
+
+
+/* ============================================================
+   DASHBOARD STATISTICS
+============================================================ */
+
+function updateDashboardStats() {
+
+    /*
+     * Your current HTML does not have dashboard
+     * statistic elements, so this function intentionally
+     * only keeps the data available.
+     */
+
+    window.campusFindReports =
+        allReports;
+
+}
+
+
 /* ============================================================
    CLAIM MODAL
 ============================================================ */
 
-function openClaimModal(reportId) {
+function openClaimModal(
+    reportId,
+    lostReportId = null
+) {
 
     if (!currentUser) {
 
         showLogin();
 
+        showToast(
+            "Please login to claim an item.",
+            "error"
+        );
+
         return;
+
     }
 
+    const foundReport =
+        allReports.find(
+            report =>
+                String(report.id) ===
+                String(reportId)
+        );
+
+    if (!foundReport) {
+
+        showToast(
+            "Found item could not be found.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    const type =
+        String(
+            foundReport.report_type ||
+            foundReport.item_type ||
+            ""
+        ).toLowerCase();
+
+    if (type !== "found") {
+
+        showToast(
+            "Only found items can be claimed.",
+            "error"
+        );
+
+        return;
+
+    }
 
     const modal =
-        $("claimModal");
+        getElement("claimModal");
 
+    const reportInput =
+        getElement("claimReportId");
 
-    if (!modal) {
+    const itemName =
+        getElement("claimItemName");
 
-        showToast(
-            "Claim form not found.",
-            "error"
-        );
+    const name =
+        getElement("claimantName");
 
-        return;
-    }
+    const email =
+        getElement("claimantEmail");
 
+    const mobile =
+        getElement("claimantMobile");
 
-    const report =
-        allReports.find(
-            item =>
-                String(
-                    item.id ||
-                    item.report_id
-                ) === String(reportId)
-        );
+    const location =
+        getElement("claimLocation");
 
+    const details =
+        getElement("claimItemDetails");
 
-    if (!report) {
+    const message =
+        getElement("claimMessage");
 
-        showToast(
-            "Report not found.",
-            "error"
-        );
+    if (reportInput) {
 
-        return;
-    }
-
-
-    if ($("claimReportId")) {
-
-        $("claimReportId").value =
+        reportInput.value =
             reportId;
+
     }
 
+    if (itemName) {
 
-    if ($("claimItemName")) {
+        itemName.value =
+            foundReport.item_name || "";
 
-        $("claimItemName").value =
-            report.item_name ||
-            report.name ||
-            "";
     }
 
+    if (name) {
 
-    if ($("claimantName")) {
-
-        $("claimantName").value =
+        name.value =
             currentUser.name ||
-            currentUser.username ||
             "";
+
     }
 
+    if (email) {
 
-    if ($("claimantEmail")) {
-
-        $("claimantEmail").value =
+        email.value =
             currentUser.email ||
             "";
+
     }
 
+    if (mobile) {
 
-    if ($("claimantMobile")) {
-
-        $("claimantMobile").value =
+        mobile.value =
             currentUser.mobile ||
             "";
+
     }
 
+    /*
+     * Find the user's lost report related to
+     * this found item.
+     */
 
-    modal.classList.add("active");
+    let matchingLost = null;
 
-    modal.style.display = "flex";
+    if (lostReportId) {
+
+        matchingLost =
+            allReports.find(
+                report =>
+                    String(report.id) ===
+                    String(lostReportId)
+            );
+
+    }
+
+    if (!matchingLost) {
+
+        const possibleMatch =
+            allMatches.find(
+                match =>
+                    String(match.found_id) ===
+                    String(reportId)
+            );
+
+        if (possibleMatch) {
+
+            matchingLost =
+                allReports.find(
+                    report =>
+                        String(report.id) ===
+                        String(
+                            possibleMatch.lost_id
+                        )
+                );
+
+        }
+
+    }
+
+    /*
+     * Only use the lost report location as a
+     * suggestion. The claimant can edit it.
+     */
+
+    if (location) {
+
+        location.value =
+            matchingLost?.location ||
+            "";
+
+    }
+
+    if (details) {
+
+        details.value = "";
+
+    }
+
+    if (message) {
+
+        message.value = "";
+
+    }
+
+    if (modal) {
+
+        modal.style.display =
+            "flex";
+
+    }
+
 }
 
 
@@ -2872,310 +1577,625 @@ function openClaimModal(reportId) {
 
 function closeClaimModal() {
 
-    closeModal("claimModal");
+    const modal =
+        getElement("claimModal");
+
+    if (modal) {
+
+        modal.style.display =
+            "none";
+
+    }
+
 }
 
 
 /* ============================================================
-   SUBMIT CLAIM
+   CLAIM FORM
 ============================================================ */
 
-async function handleClaimSubmit(event) {
-
-    if (event) {
-        event.preventDefault();
-    }
-
-
-    if (!currentUser) {
-
-        showLogin();
-
-        return;
-    }
-
+function setupClaimForm() {
 
     const form =
-        $("claimForm");
+        getElement("claimForm");
 
+    if (!form) return;
 
-    if (!form) {
-        return;
-    }
+    form.addEventListener(
+        "submit",
+        async function (event) {
 
+            event.preventDefault();
 
-    const formData =
-        new FormData(form);
+            if (!currentUser) {
 
+                showLogin();
 
-    const data = {};
+                return;
 
+            }
 
-    formData.forEach(
-        (value, key) => {
-            data[key] = value;
+            const reportId =
+                getElement("claimReportId")?.value;
+
+            const claimantName =
+                getElement("claimantName")?.value.trim();
+
+            const claimantEmail =
+                getElement("claimantEmail")?.value.trim();
+
+            const claimantMobile =
+                getElement("claimantMobile")?.value.trim();
+
+            const lostLocation =
+                getElement("claimLocation")?.value.trim();
+
+            const itemDetails =
+                getElement("claimItemDetails")?.value.trim();
+
+            const claimMessage =
+                getElement("claimMessage")?.value.trim();
+
+            if (!reportId) {
+
+                showToast(
+                    "Invalid item.",
+                    "error"
+                );
+
+                return;
+
+            }
+
+            if (
+                !claimantName ||
+                !claimantEmail ||
+                !claimantMobile ||
+                !itemDetails ||
+                !claimMessage
+            ) {
+
+                showToast(
+                    "Please fill all required claim details.",
+                    "error"
+                );
+
+                return;
+
+            }
+
+            const combinedReason = `
+
+Claimant Name:
+${claimantName}
+
+Claimant Email:
+${claimantEmail}
+
+Claimant Mobile:
+${claimantMobile}
+
+Where the item was lost:
+${lostLocation || "Not provided"}
+
+Unique identifying details:
+${itemDetails}
+
+Why this is my item:
+${claimMessage}
+
+            `.trim();
+
+            const submitButton =
+                form.querySelector(
+                    'button[type="submit"]'
+                );
+
+            if (submitButton) {
+
+                submitButton.disabled =
+                    true;
+
+                submitButton.textContent =
+                    "Submitting...";
+
+            }
+
+            try {
+
+                /*
+                 * IMPORTANT:
+                 * The backend expects:
+                 * reason + proof.
+                 *
+                 * Additional fields are also sent
+                 * for newer backend versions.
+                 */
+
+                const result =
+                    await apiRequest(
+                        "/claims",
+                        {
+                            method: "POST",
+
+                            body: {
+
+                                report_id:
+                                    Number(reportId),
+
+                                reason:
+                                    combinedReason,
+
+                                proof:
+                                    itemDetails,
+
+                                claim_lost_location:
+                                    lostLocation,
+
+                                claim_item_details:
+                                    itemDetails,
+
+                                claim_reason:
+                                    claimMessage,
+
+                                message:
+                                    claimMessage,
+
+                                claimant_name:
+                                    claimantName,
+
+                                claimant_email:
+                                    claimantEmail,
+
+                                claimant_mobile:
+                                    claimantMobile
+
+                            }
+
+                        }
+                    );
+
+                if (
+                    result.success === false
+                ) {
+
+                    throw new Error(
+                        result.message ||
+                        "Claim submission failed."
+                    );
+
+                }
+
+                showToast(
+                    result.message ||
+                    "Claim submitted successfully.",
+                    "success"
+                );
+
+                closeClaimModal();
+
+                form.reset();
+
+                await loadNotifications();
+
+            } catch (error) {
+
+                console.error(
+                    "Claim error:",
+                    error
+                );
+
+                showToast(
+                    error.message ||
+                    "Failed to submit claim.",
+                    "error"
+                );
+
+            } finally {
+
+                if (submitButton) {
+
+                    submitButton.disabled =
+                        false;
+
+                    submitButton.textContent =
+                        "📤 Submit Claim";
+
+                }
+
+            }
+
         }
     );
 
+}
+
+
+/* ============================================================
+   LOAD AI MATCHES
+============================================================ */
+
+async function loadMatches() {
 
     try {
 
-        const response =
+        const data =
             await apiRequest(
-                "/api/claims",
+                "/matches",
                 {
-                    method: "POST",
-                    body: data
+                    method: "GET"
                 }
             );
 
+        if (
+            Array.isArray(data)
+        ) {
 
-        showToast(
-            response.message ||
-            "Claim submitted successfully.",
-            "success"
-        );
+            allMatches =
+                data;
 
+        } else {
 
-        form.reset();
+            allMatches =
+                data?.matches ||
+                data?.data ||
+                [];
 
-        closeClaimModal();
+        }
 
+        if (!Array.isArray(allMatches)) {
 
-        await loadNotifications();
+            allMatches = [];
 
+        }
 
-    }
+        window.campusFindMatches =
+            allMatches;
 
-    catch (error) {
+        renderAIMatches();
+
+        return allMatches;
+
+    } catch (error) {
 
         console.error(
-            "CLAIM ERROR:",
+            "AI match error:",
             error
         );
 
-        showToast(
-            error.message ||
-            "Unable to submit claim.",
-            "error"
-        );
-    }
-}
+        allMatches = [];
 
-/* ============================================================
-   NOTIFICATIONS
-============================================================ */
-
-function openNotifications() {
-    const panel = document.getElementById("notificationPanel");
-
-    if (!panel) {
-        console.error("Notification panel not found");
-        return;
-    }
-
-    // Close other sections/panels if needed
-    panel.style.display = "block";
-    panel.classList.add("active");
-    panel.classList.add("show");
-
-    loadNotifications();
-}
-
-
-function closeNotifications() {
-    const panel = document.getElementById("notificationPanel");
-
-    if (!panel) {
-        console.error("Notification panel not found");
-        return;
-    }
-
-    // Force close
-    panel.style.display = "none";
-    panel.classList.remove("active");
-    panel.classList.remove("show");
-}
-
-
-/* ============================================================
-   LOAD NOTIFICATIONS
-============================================================ */
-
-async function loadNotifications() {
-    const list = document.getElementById("notificationsList");
-    const sectionList = document.getElementById("notificationList");
-
-    try {
-        const response = await apiRequest("/api/notifications");
-
-        if (!response.ok) {
-            throw new Error("Failed to load notifications");
-        }
-
-        const data = await response.json();
-
-        const notifications =
-            data.notifications ||
-            data.data ||
-            data ||
+        window.campusFindMatches =
             [];
 
-        allNotifications = Array.isArray(notifications)
-            ? notifications
-            : [];
+        renderAIMatches();
 
-        renderNotifications();
+        return [];
 
-    } catch (error) {
-        console.error("Notification error:", error);
-
-        if (list) {
-            list.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon">🔔</div>
-                    <h3>No notifications</h3>
-                    <p>You're all caught up.</p>
-                </div>
-            `;
-        }
-
-        if (sectionList) {
-            sectionList.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon">🔔</div>
-                    <h3>No notifications</h3>
-                    <p>You're all caught up.</p>
-                </div>
-            `;
-        }
     }
+
 }
 
 
 /* ============================================================
-   RENDER NOTIFICATIONS
+   AI SCORE
 ============================================================ */
 
-function renderNotifications() {
+function getMatchPercentage(match) {
 
-    const panelList = document.getElementById("notificationsList");
-    const sectionList = document.getElementById("notificationList");
+    const values = [
 
-    if (!allNotifications || allNotifications.length === 0) {
+        match?.percentage,
 
-        const emptyHTML = `
+        match?.match_percentage,
+
+        match?.ai_match_score,
+
+        match?.score,
+
+        match?.match_score
+
+    ];
+
+    for (const value of values) {
+
+        if (
+            value !== undefined &&
+            value !== null &&
+            value !== ""
+        ) {
+
+            const number =
+                Number(
+                    String(value)
+                        .replace("%", "")
+                        .trim()
+                );
+
+            if (!Number.isNaN(number)) {
+
+                return Math.max(
+                    0,
+                    Math.min(100, number)
+                );
+
+            }
+
+        }
+
+    }
+
+    return 0;
+
+}
+
+
+/* ============================================================
+   FIND AI SCORE FOR CLAIM
+============================================================ */
+
+function findClaimAIScore(reportId) {
+
+    const match =
+        allMatches.find(
+            item =>
+                String(
+                    item.found_id
+                ) ===
+                String(reportId)
+        );
+
+    if (!match) {
+
+        return 0;
+
+    }
+
+    return getMatchPercentage(match);
+
+}
+
+
+/* ============================================================
+   RENDER AI MATCHES
+============================================================ */
+
+function renderAIMatches() {
+
+    const container =
+        getElement("aiMatches");
+
+    if (!container) return;
+
+    if (!allMatches.length) {
+
+        container.innerHTML = `
+
             <div class="empty-state">
-                <div class="empty-icon">🔔</div>
-                <h3>No notifications</h3>
-                <p>You're all caught up.</p>
+
+                <div class="empty-icon">
+                    🤖
+                </div>
+
+                <h3>
+                    No AI matches yet
+                </h3>
+
+                <p>
+                    Create both lost and found reports
+                    to generate possible matches.
+                </p>
+
             </div>
+
         `;
-
-        if (panelList) {
-            panelList.innerHTML = emptyHTML;
-        }
-
-        if (sectionList) {
-            sectionList.innerHTML = emptyHTML;
-        }
 
         return;
+
     }
 
-    const html = allNotifications.map(notification => {
+    container.innerHTML =
+        allMatches
+            .map(
+                createMatchCard
+            )
+            .join("");
 
-        const title =
-            notification.title ||
-            notification.message ||
-            "CampusFind Notification";
+}
 
-        const message =
-            notification.message ||
-            notification.description ||
-            "";
 
-        return `
-            <div class="notification-item">
+/* ============================================================
+   CREATE AI MATCH CARD
+============================================================ */
 
-                <div class="notification-icon">
-                    🔔
+function createMatchCard(match) {
+
+    const percentage =
+        getMatchPercentage(match);
+
+    const lostImage =
+        getImageUrl(
+            match.lost_image
+        );
+
+    const foundImage =
+        getImageUrl(
+            match.found_image
+        );
+
+    const lostImageHTML =
+        lostImage
+            ? `
+                <img
+                    src="${escapeHTML(lostImage)}"
+                    alt="Lost item"
+                    loading="lazy"
+                    onerror="this.style.display='none';">
+              `
+            : `
+                <div class="match-no-image">
+                    🔍
                 </div>
+              `;
 
-                <div class="notification-content">
+    const foundImageHTML =
+        foundImage
+            ? `
+                <img
+                    src="${escapeHTML(foundImage)}"
+                    alt="Found item"
+                    loading="lazy"
+                    onerror="this.style.display='none';">
+              `
+            : `
+                <div class="match-no-image">
+                    📦
+                </div>
+              `;
 
-                    <strong>
-                        ${escapeHTML(title)}
-                    </strong>
+    const foundId =
+        match.found_id ||
+        match.report_id;
+
+    return `
+
+        <div class="match-card">
+
+            <div class="match-score">
+
+                🤖 AI Match:
+                <strong>
+                    ${percentage}%
+                </strong>
+
+            </div>
+
+
+            <div class="match-items">
+
+
+                <div class="match-item">
+
+                    <div class="match-image">
+
+                        ${lostImageHTML}
+
+                    </div>
+
+                    <span class="match-label">
+                        LOST ITEM
+                    </span>
+
+                    <h3>
+                        ${escapeHTML(
+                            match.lost_item ||
+                            "Lost Item"
+                        )}
+                    </h3>
 
                     <p>
-                        ${escapeHTML(message)}
+                        📍
+                        ${escapeHTML(
+                            match.lost_location ||
+                            ""
+                        )}
                     </p>
+
+                    <small>
+                        ${escapeHTML(
+                            match.lost_description ||
+                            ""
+                        )}
+                    </small>
+
+                </div>
+
+
+                <div class="match-arrow">
+                    ↔
+                </div>
+
+
+                <div class="match-item">
+
+                    <div class="match-image">
+
+                        ${foundImageHTML}
+
+                    </div>
+
+                    <span class="match-label">
+                        FOUND ITEM
+                    </span>
+
+                    <h3>
+                        ${escapeHTML(
+                            match.found_item ||
+                            "Found Item"
+                        )}
+                    </h3>
+
+                    <p>
+                        📍
+                        ${escapeHTML(
+                            match.found_location ||
+                            ""
+                        )}
+                    </p>
+
+                    <small>
+                        ${escapeHTML(
+                            match.found_description ||
+                            ""
+                        )}
+                    </small>
 
                 </div>
 
             </div>
-        `;
-
-    }).join("");
-
-    if (panelList) {
-        panelList.innerHTML = html;
-    }
-
-    if (sectionList) {
-        sectionList.innerHTML = html;
-    }
-}
 
 
-/* ============================================================
-   CLEAR NOTIFICATIONS
-============================================================ */
+            <div class="match-reason">
 
-async function clearNotifications() {
+                <strong>
+                    Why AI thinks they may match:
+                </strong>
 
-    try {
+                <p>
+                    ${escapeHTML(
+                        match.reason ||
+                        "The AI found similarities between the two reports."
+                    )}
+                </p>
 
-        const response = await apiRequest(
-            "/api/notifications/clear",
-            {
-                method: "POST"
+            </div>
+
+
+            ${
+                foundId
+                    ? `
+                        <button
+                            type="button"
+                            class="claim-btn"
+                            onclick="openClaimModal(${Number(foundId)}, ${Number(match.lost_id || 0)})">
+                            📦 Claim Found Item
+                        </button>
+                      `
+                    : ""
             }
-        );
 
-        if (!response.ok) {
-            throw new Error("Failed to clear notifications");
-        }
+        </div>
 
-        allNotifications = [];
+    `;
 
-        renderNotifications();
-
-        showToast(
-            "success",
-            "Notifications cleared successfully"
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Clear notifications error:",
-            error
-        );
-
-        showToast(
-            "error",
-            "Unable to clear notifications"
-        );
-    }
 }
 
+
 /* ============================================================
-   ADMIN PANEL
+   ADMIN REPORTS
 ============================================================ */
 
-async function loadAdminPanel() {
+async function loadAdminReports() {
 
     if (!isAdminUser()) {
 
@@ -3185,15 +2205,58 @@ async function loadAdminPanel() {
         );
 
         return;
+
     }
 
+    try {
 
-    await Promise.all([
-        refreshAdminStats(),
-        loadAdminReports(),
-        loadAdminClaims(),
-        loadAdminUsers()
-    ]);
+        const data =
+            await apiRequest(
+                "/reports",
+                {
+                    method: "GET"
+                }
+            );
+
+        let reports = [];
+
+        if (Array.isArray(data)) {
+
+            reports = data;
+
+        } else {
+
+            reports =
+                data?.reports ||
+                data?.data ||
+                [];
+
+        }
+
+        allReports =
+            reports
+                .map(normalizeReport)
+                .filter(Boolean);
+
+        renderAdminReports();
+
+        return allReports;
+
+    } catch (error) {
+
+        console.error(
+            "Admin reports error:",
+            error
+        );
+
+        showToast(
+            error.message ||
+            "Could not load reports.",
+            "error"
+        );
+
+    }
+
 }
 
 
@@ -3201,123 +2264,57 @@ async function loadAdminPanel() {
    ADMIN FILTER
 ============================================================ */
 
-function setAdminFilter(filter, button) {
+function setAdminFilter(
+    filter,
+    button
+) {
 
     currentAdminFilter =
-        filter || "all";
+        String(filter).toLowerCase();
 
-
-    document.querySelectorAll(
-        ".admin-filter"
-    ).forEach(item => {
-
-        item.classList.remove("active");
-
-    });
-
+    document
+        .querySelectorAll(".admin-filter")
+        .forEach(
+            item =>
+                item.classList.remove("active")
+        );
 
     if (button) {
 
         button.classList.add("active");
 
-    }
+    } else {
 
-
-    else {
-
-        const target =
+        const matching =
             document.querySelector(
-                `.admin-filter[data-filter="${filter}"]`
+                `.admin-filter[data-filter="${CSS.escape(currentAdminFilter)}"]`
             );
 
-        if (target) {
-            target.classList.add("active");
+        if (matching) {
+
+            matching.classList.add("active");
+
         }
+
     }
 
+    renderAdminReports();
 
-    renderAdminReports(
-        $("adminReports"),
-        allReports
-    );
 }
 
 
 /* ============================================================
-   LOAD ADMIN REPORTS
+   REPORT STATUS
 ============================================================ */
 
-async function loadAdminReports() {
+function getReportStatus(report) {
 
-    if (!isAdminUser()) {
-        return;
-    }
+    return String(
+        report.status ||
+        report.approval_status ||
+        "pending"
+    ).toLowerCase();
 
-
-    const container =
-        $("adminReports");
-
-
-    if (container) {
-
-        container.innerHTML = `
-            <div class="loading">
-                Loading reports...
-            </div>
-        `;
-    }
-
-
-    try {
-
-        const data =
-            await apiRequest(
-                "/api/reports",
-                {
-                    method: "GET"
-                }
-            );
-
-
-        allReports =
-            getArray(
-                data,
-                [
-                    "reports",
-                    "data",
-                    "items"
-                ]
-            );
-
-
-        renderAdminReports(
-            container,
-            allReports
-        );
-
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "ADMIN REPORT ERROR:",
-            error
-        );
-
-
-        if (container) {
-
-            container.innerHTML = `
-                <div class="empty-state">
-                    <h3>Unable to load reports</h3>
-                    <p>
-                        ${escapeHTML(error.message)}
-                    </p>
-                </div>
-            `;
-        }
-    }
 }
 
 
@@ -3325,44 +2322,33 @@ async function loadAdminReports() {
    RENDER ADMIN REPORTS
 ============================================================ */
 
-function renderAdminReports(
-    container,
-    reports
-) {
+function renderAdminReports() {
 
-    if (!container) {
-        return;
-    }
+    const container =
+        getElement("adminReports");
 
+    if (!container) return;
 
-    let filteredReports =
-        Array.isArray(reports)
-            ? [...reports]
-            : [];
-
+    let reports =
+        [...allReports];
 
     if (
-        currentAdminFilter &&
         currentAdminFilter !== "all"
     ) {
 
-        filteredReports =
-            filteredReports.filter(
+        reports =
+            reports.filter(
                 report =>
-                    String(
-                        report.status ||
-                        "pending"
-                    ).toLowerCase() ===
-                    String(
-                        currentAdminFilter
-                    ).toLowerCase()
+                    getReportStatus(report) ===
+                    currentAdminFilter
             );
+
     }
 
-
-    if (filteredReports.length === 0) {
+    if (!reports.length) {
 
         container.innerHTML = `
+
             <div class="empty-state">
 
                 <div class="empty-icon">
@@ -3370,211 +2356,258 @@ function renderAdminReports(
                 </div>
 
                 <h3>
-                    No ${escapeHTML(
-                        currentAdminFilter === "all"
-                            ? ""
-                            : currentAdminFilter + " "
-                    )}reports
+                    No reports found
                 </h3>
 
                 <p>
-                    There are no reports in this category.
+                    There are no reports in this filter.
                 </p>
 
             </div>
+
         `;
 
         return;
+
     }
 
-
     container.innerHTML =
-        filteredReports
-            .map(report =>
-                createAdminReportCard(report)
+        reports
+            .map(
+                createAdminReportCard
             )
             .join("");
+
 }
 
 
 /* ============================================================
-   CREATE ADMIN REPORT CARD
+   ADMIN REPORT CARD
 ============================================================ */
 
 function createAdminReportCard(report) {
 
-    const id =
-        report.id ||
-        report.report_id;
-
+    const status =
+        getReportStatus(report);
 
     const type =
         String(
             report.report_type ||
-            report.type ||
             report.item_type ||
-            "lost"
+            ""
         ).toLowerCase();
-
-
-    const name =
-        report.item_name ||
-        report.name ||
-        report.title ||
-        "Unnamed Item";
-
-
-    const category =
-        report.category ||
-        "Other";
-
-
-    const location =
-        report.location ||
-        "Unknown";
-
-
-    const description =
-        report.description ||
-        "No description";
-
-
-    const status =
-        String(
-            report.status ||
-            "pending"
-        ).toLowerCase();
-
 
     const image =
-        getReportImage(report);
+        getImageUrl(
+            report.image
+        );
 
+    const imageHTML =
+        image
+            ? `
+                <img
+                    src="${escapeHTML(image)}"
+                    alt="${escapeHTML(report.item_name)}"
+                    loading="lazy"
+                    style="max-width:100%;max-height:220px;object-fit:contain;"
+                    onerror="this.style.display='none';">
+              `
+            : "";
+
+    let actions = "";
+
+    if (
+        status === "pending"
+    ) {
+
+        actions = `
+
+            <div class="claim-actions">
+
+                <button
+                    type="button"
+                    class="claim-approve-btn"
+                    onclick="updateReportStatus(${Number(report.id)}, 'approved')">
+                    ✓ Approve
+                </button>
+
+                <button
+                    type="button"
+                    class="claim-reject-btn"
+                    onclick="updateReportStatus(${Number(report.id)}, 'rejected')">
+                    ✕ Reject
+                </button>
+
+            </div>
+
+        `;
+
+    } else if (
+        status === "approved"
+    ) {
+
+        actions = `
+
+            <div class="claim-actions">
+
+                <span class="approved-label">
+                    ✓ Approved
+                </span>
+
+            </div>
+
+        `;
+
+    } else {
+
+        actions = `
+
+            <div class="claim-actions">
+
+                <span class="rejected-label">
+                    ✕ Rejected
+                </span>
+
+            </div>
+
+        `;
+
+    }
 
     return `
-        <div class="admin-report-card">
+
+        <div class="admin-claim-card">
+
+            <div class="admin-claim-header">
+
+                <div>
+
+                    <h3 class="admin-claim-title">
+
+                        ${
+                            type === "found"
+                                ? "📦"
+                                : "🔍"
+                        }
+
+                        ${escapeHTML(
+                            report.item_name
+                        )}
+
+                    </h3>
+
+                    <small>
+                        Report ID:
+                        ${escapeHTML(report.id)}
+                    </small>
+
+                </div>
+
+
+                <span
+                    class="admin-claim-status ${escapeHTML(status)}">
+
+                    ${escapeHTML(
+                        capitalize(status)
+                    )}
+
+                </span>
+
+            </div>
+
 
             ${
-                image
-                ?
-                `
-                <img
-                    class="admin-report-image"
-                    src="${escapeHTML(image)}"
-                    alt="${escapeHTML(name)}"
-                    loading="lazy"
-                >
-                `
-                :
-                `
-                <div
-                    class="admin-report-image"
-                    style="
-                        display:flex;
-                        align-items:center;
-                        justify-content:center;
-                        font-size:28px;
-                    "
-                >
-                    📦
-                </div>
-                `
+                imageHTML
+                    ? `
+                        <div style="margin:10px 0;">
+                            ${imageHTML}
+                        </div>
+                      `
+                    : ""
             }
 
 
-            <div class="admin-report-info">
+            <div class="claimant-info">
 
-                <span class="report-type ${type}">
-                    ${capitalize(type)}
-                </span>
+                <div>
 
+                    <strong>
+                        Type
+                    </strong>
 
-                <span class="status-badge ${status}">
-                    ${capitalize(status)}
-                </span>
+                    ${escapeHTML(
+                        capitalize(type)
+                    )}
 
-
-                <h3>
-                    ${escapeHTML(name)}
-                </h3>
+                </div>
 
 
-                <p>
-                    <strong>Category:</strong>
-                    ${escapeHTML(category)}
-                </p>
+                <div>
+
+                    <strong>
+                        Category
+                    </strong>
+
+                    ${escapeHTML(
+                        report.category ||
+                        "Other"
+                    )}
+
+                </div>
 
 
-                <p>
-                    <strong>Location:</strong>
-                    ${escapeHTML(location)}
-                </p>
+                <div>
+
+                    <strong>
+                        Location
+                    </strong>
+
+                    ${escapeHTML(
+                        report.location ||
+                        "Unknown"
+                    )}
+
+                </div>
 
 
-                <p>
-                    <strong>Description:</strong>
-                    ${escapeHTML(description)}
-                </p>
+                <div>
 
+                    <strong>
+                        Date
+                    </strong>
 
-                ${
-                    report.created_at
-                    ?
-                    `
-                    <p>
-                        <strong>Submitted:</strong>
-                        ${escapeHTML(
-                            formatDate(
-                                report.created_at
-                            )
-                        )}
-                    </p>
-                    `
-                    :
-                    ""
-                }
-
-
-                <div class="admin-report-actions">
-
-                    ${
-                        status !== "approved"
-                        ?
-                        `
-                        <button
-                            type="button"
-                            class="approve-btn"
-                            onclick="updateReportStatus(${Number(id)}, 'approved')"
-                        >
-                            ✓ Approve
-                        </button>
-                        `
-                        :
+                    ${escapeHTML(
+                        report.report_date ||
                         ""
-                    }
-
-
-                    ${
-                        status !== "rejected"
-                        ?
-                        `
-                        <button
-                            type="button"
-                            class="reject-btn"
-                            onclick="updateReportStatus(${Number(id)}, 'rejected')"
-                        >
-                            ✕ Reject
-                        </button>
-                        `
-                        :
-                        ""
-                    }
+                    )}
 
                 </div>
 
             </div>
 
+
+            <div class="claim-message">
+
+                <strong>
+                    Description
+                </strong>
+
+                <p>
+                    ${escapeHTML(
+                        report.description ||
+                        "No description provided."
+                    )}
+                </p>
+
+            </div>
+
+
+            ${actions}
+
         </div>
+
     `;
+
 }
 
 
@@ -3584,7 +2617,7 @@ function createAdminReportCard(report) {
 
 async function updateReportStatus(
     reportId,
-    status
+    newStatus
 ) {
 
     if (!isAdminUser()) {
@@ -3595,62 +2628,90 @@ async function updateReportStatus(
         );
 
         return;
+
     }
 
-
     if (
-        !reportId ||
-        !status
+        newStatus !== "approved" &&
+        newStatus !== "rejected"
     ) {
 
         return;
+
     }
 
+    const action =
+        newStatus === "approved"
+            ? "approve"
+            : "reject";
+
+    if (
+        !confirm(
+            `Are you sure you want to ${action} this report?`
+        )
+    ) {
+
+        return;
+
+    }
 
     try {
 
-        const data =
+        showToast(
+            `${capitalize(action)}ing report...`,
+            "info"
+        );
+
+        const result =
             await apiRequest(
-                `/api/reports/${reportId}/status`,
+                `/reports/${encodeURIComponent(reportId)}/status`,
                 {
                     method: "PUT",
 
                     body: {
-                        status: status
+                        status: newStatus
                     }
                 }
             );
 
+        if (
+            result.success === false
+        ) {
+
+            throw new Error(
+                result.message ||
+                "Status update failed."
+            );
+
+        }
 
         showToast(
-            data.message ||
-            `Report ${status}.`,
+            result.message ||
+            `Report ${newStatus}.`,
             "success"
         );
-
 
         await loadAdminReports();
 
         await refreshAdminStats();
 
-        await loadNotifications();
+        await loadReports();
 
-
-    }
-
-    catch (error) {
+    } catch (error) {
 
         console.error(
-            "UPDATE REPORT STATUS ERROR:",
+            "Report status error:",
             error
         );
 
         showToast(
             error.message ||
-            "Unable to update report status.",
+            "Could not update report status.",
             "error"
         );
+
     }
+
 }
 
 
@@ -3661,76 +2722,313 @@ async function updateReportStatus(
 async function loadAdminClaims() {
 
     if (!isAdminUser()) {
+
+        showToast(
+            "Admin access required.",
+            "error"
+        );
+
         return;
+
     }
-
-
-    const container =
-        $("adminClaims");
-
-
-    if (!container) {
-        return;
-    }
-
-
-    container.innerHTML = `
-        <div class="loading">
-            Loading claims...
-        </div>
-    `;
-
 
     try {
 
         const data =
             await apiRequest(
-                "/api/admin/claims",
+                "/admin/claims",
                 {
                     method: "GET"
                 }
             );
 
-
         allAdminClaims =
-            getArray(
-                data,
-                [
-                    "claims",
-                    "data",
-                    "items"
-                ]
-            );
+            data?.claims ||
+            data?.data ||
+            [];
 
+        if (!Array.isArray(allAdminClaims)) {
 
-        renderAdminClaims(
-            container,
-            allAdminClaims
-        );
+            allAdminClaims = [];
 
+        }
 
-    }
+        renderAdminClaims();
 
-    catch (error) {
+    } catch (error) {
 
         console.error(
-            "ADMIN CLAIM ERROR:",
+            "Admin claims error:",
             error
         );
 
+        showToast(
+            error.message ||
+            "Could not load claims.",
+            "error"
+        );
 
-        container.innerHTML = `
-            <div class="empty-state">
-                <h3>
-                    Unable to load claims
-                </h3>
+    }
+
+}
+
+
+/* ============================================================
+   CREATE ADMIN CLAIM CARD
+============================================================ */
+
+function createAdminClaimCard(claim) {
+
+    const claimId =
+        claim.id ||
+        claim.claim_id;
+
+    const reportId =
+        claim.report_id;
+
+    const status =
+        String(
+            claim.status ||
+            "pending"
+        ).toLowerCase();
+
+    const itemName =
+        claim.item_name ||
+        "Unknown Item";
+
+    const claimantName =
+        claim.name ||
+        claim.claimant_name ||
+        "Unknown";
+
+    const claimantEmail =
+        claim.email ||
+        claim.claimant_email ||
+        "Not provided";
+
+    const claimantMobile =
+        claim.mobile ||
+        claim.claimant_mobile ||
+        "Not provided";
+
+    const reason =
+        claim.reason ||
+        claim.claim_reason ||
+        claim.message ||
+        "No claim details provided.";
+
+    const proof =
+        claim.proof ||
+        claim.claim_item_details ||
+        "Not provided.";
+
+    const createdAt =
+        claim.created_at ||
+        "";
+
+    const aiScore =
+        findClaimAIScore(reportId);
+
+    let actions = "";
+
+    if (status === "pending") {
+
+        actions = `
+
+            <div class="claim-actions">
+
+                <button
+                    type="button"
+                    class="claim-approve-btn"
+                    onclick="updateClaimStatus(${Number(claimId)}, 'approved')">
+
+                    ✓ Approve Claim
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="claim-reject-btn"
+                    onclick="updateClaimStatus(${Number(claimId)}, 'rejected')">
+
+                    ✕ Reject Claim
+
+                </button>
+
+            </div>
+
+        `;
+
+    } else if (status === "approved") {
+
+        actions = `
+
+            <div class="claim-actions">
+
+                <span class="approved-label">
+                    ✓ Claim Approved
+                </span>
+
+            </div>
+
+        `;
+
+    } else if (status === "rejected") {
+
+        actions = `
+
+            <div class="claim-actions">
+
+                <span class="rejected-label">
+                    ✕ Claim Rejected
+                </span>
+
+            </div>
+
+        `;
+
+    }
+
+    return `
+
+        <div class="admin-claim-card">
+
+
+            <div class="admin-claim-header">
+
+                <div>
+
+                    <h3 class="admin-claim-title">
+
+                        📦
+                        ${escapeHTML(itemName)}
+
+                    </h3>
+
+                    <small>
+
+                        Claim ID:
+                        ${escapeHTML(claimId)}
+
+                    </small>
+
+                </div>
+
+
+                <span
+                    class="admin-claim-status ${escapeHTML(status)}">
+
+                    ${escapeHTML(
+                        capitalize(status)
+                    )}
+
+                </span>
+
+            </div>
+
+
+            <div class="claimant-info">
+
+
+                <div>
+
+                    <strong>
+                        Claimant Name
+                    </strong>
+
+                    ${escapeHTML(
+                        claimantName
+                    )}
+
+                </div>
+
+
+                <div>
+
+                    <strong>
+                        Email
+                    </strong>
+
+                    ${escapeHTML(
+                        claimantEmail
+                    )}
+
+                </div>
+
+
+                <div>
+
+                    <strong>
+                        Mobile
+                    </strong>
+
+                    ${escapeHTML(
+                        claimantMobile
+                    )}
+
+                </div>
+
+
+                <div>
+
+                    <strong>
+                        Claim Date
+                    </strong>
+
+                    ${escapeHTML(
+                        createdAt
+                    )}
+
+                </div>
+
+
+            </div>
+
+
+            <div class="claim-ai-score">
+
+                🤖 AI Match Percentage:
+
+                <strong>
+                    ${aiScore}%
+                </strong>
+
+            </div>
+
+
+            <div class="claim-message">
+
+                <strong>
+                    Unique Item Details
+                </strong>
 
                 <p>
-                    ${escapeHTML(error.message)}
+                    ${escapeHTML(proof)}
                 </p>
+
             </div>
-        `;
-    }
+
+
+            <div class="claim-message">
+
+                <strong>
+                    Claim Explanation
+                </strong>
+
+                <p>
+                    ${escapeHTML(reason)}
+                </p>
+
+            </div>
+
+
+            ${actions}
+
+        </div>
+
+    `;
+
 }
 
 
@@ -3738,206 +3036,44 @@ async function loadAdminClaims() {
    RENDER ADMIN CLAIMS
 ============================================================ */
 
-function renderAdminClaims(
-    container,
-    claims
-) {
+function renderAdminClaims() {
 
-    if (!claims || claims.length === 0) {
+    const container =
+        getElement("adminClaims");
+
+    if (!container) return;
+
+    if (!allAdminClaims.length) {
 
         container.innerHTML = `
+
             <div class="empty-state">
 
                 <div class="empty-icon">
-                    📑
+                    📋
                 </div>
 
                 <h3>
-                    No claims
+                    No claim requests
                 </h3>
 
                 <p>
-                    There are no item claims yet.
+                    No claim requests are available.
                 </p>
 
             </div>
+
         `;
 
         return;
+
     }
 
-
     container.innerHTML =
-        claims
-            .map(claim => {
-
-                const id =
-                    claim.id ||
-                    claim.claim_id;
-
-
-                const itemName =
-                    claim.item_name ||
-                    claim.report_item_name ||
-                    "Unknown Item";
-
-
-                const claimant =
-                    claim.claimant_name ||
-                    claim.name ||
-                    "Unknown User";
-
-
-                const email =
-                    claim.claimant_email ||
-                    claim.email ||
-                    "";
-
-
-                const mobile =
-                    claim.claimant_mobile ||
-                    claim.mobile ||
-                    "";
-
-
-                const message =
-                    claim.message ||
-                    claim.claim_message ||
-                    "No message provided.";
-
-
-                const score =
-                    claim.ai_match_score;
-
-
-                const status =
-                    String(
-                        claim.status ||
-                        "pending"
-                    ).toLowerCase();
-
-
-                return `
-                    <div class="admin-claim-card">
-
-                        <div class="admin-claim-header">
-
-                            <div>
-
-                                <h3 class="admin-claim-title">
-                                    ${escapeHTML(itemName)}
-                                </h3>
-
-                                <p>
-                                    Claim by
-                                    <strong>
-                                        ${escapeHTML(claimant)}
-                                    </strong>
-                                </p>
-
-                            </div>
-
-
-                            <span class="admin-claim-status ${status}">
-                                ${escapeHTML(status)}
-                            </span>
-
-                        </div>
-
-
-                        <div class="claimant-info">
-
-                            <div>
-                                <strong>
-                                    Name
-                                </strong>
-
-                                ${escapeHTML(claimant)}
-                            </div>
-
-
-                            <div>
-                                <strong>
-                                    Email
-                                </strong>
-
-                                ${escapeHTML(email)}
-                            </div>
-
-
-                            <div>
-                                <strong>
-                                    Mobile
-                                </strong>
-
-                                ${escapeHTML(mobile)}
-                            </div>
-
-                        </div>
-
-
-                        ${
-                            score !== undefined &&
-                            score !== null
-                            ?
-                            `
-                            <div class="claim-ai-score">
-                                🤖 AI Match Score:
-                                ${escapeHTML(score)}%
-                            </div>
-                            `
-                            :
-                            ""
-                        }
-
-
-                        <div class="claim-message">
-
-                            <strong>
-                                Claim Details
-                            </strong>
-
-                            <p>
-                                ${escapeHTML(message)}
-                            </p>
-
-                        </div>
-
-
-                        ${
-                            status === "pending"
-                            ?
-                            `
-                            <div class="claim-actions">
-
-                                <button
-                                    type="button"
-                                    class="claim-approve-btn"
-                                    onclick="updateClaimStatus(${Number(id)}, 'approved')"
-                                >
-                                    ✓ Approve Claim
-                                </button>
-
-
-                                <button
-                                    type="button"
-                                    class="claim-reject-btn"
-                                    onclick="updateClaimStatus(${Number(id)}, 'rejected')"
-                                >
-                                    ✕ Reject Claim
-                                </button>
-
-                            </div>
-                            `
-                            :
-                            ""
-                        }
-
-                    </div>
-                `;
-
-            })
+        allAdminClaims
+            .map(createAdminClaimCard)
             .join("");
+
 }
 
 
@@ -3958,14 +3094,38 @@ async function updateClaimStatus(
         );
 
         return;
+
     }
 
+    if (
+        status !== "approved" &&
+        status !== "rejected"
+    ) {
+
+        return;
+
+    }
+
+    const action =
+        status === "approved"
+            ? "approve"
+            : "reject";
+
+    if (
+        !confirm(
+            `Are you sure you want to ${action} this claim?`
+        )
+    ) {
+
+        return;
+
+    }
 
     try {
 
-        const data =
+        const result =
             await apiRequest(
-                `/api/admin/claims/${claimId}/status`,
+                `/admin/claims/${encodeURIComponent(claimId)}`,
                 {
                     method: "PUT",
 
@@ -3975,34 +3135,136 @@ async function updateClaimStatus(
                 }
             );
 
+        if (
+            result.success === false
+        ) {
+
+            throw new Error(
+                result.message ||
+                "Claim status update failed."
+            );
+
+        }
 
         showToast(
-            data.message ||
+            result.message ||
             `Claim ${status}.`,
             "success"
         );
 
-
         await loadAdminClaims();
+
+        await refreshAdminStats();
 
         await loadNotifications();
 
-
-    }
-
-    catch (error) {
+    } catch (error) {
 
         console.error(
-            "CLAIM STATUS ERROR:",
+            "Claim status error:",
             error
         );
 
         showToast(
             error.message ||
-            "Unable to update claim.",
+            "Could not update claim.",
             "error"
         );
+
     }
+
+}
+
+
+/* ============================================================
+   ADMIN STATS
+============================================================ */
+
+async function refreshAdminStats() {
+
+    if (!isAdminUser()) return;
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/admin/stats",
+                {
+                    method: "GET"
+                }
+            );
+
+        if (!data) return;
+
+        const total =
+            data.total_reports ??
+            data.total ??
+            0;
+
+        const lost =
+            data.lost ??
+            data.lost_count ??
+            0;
+
+        const found =
+            data.found ??
+            data.found_count ??
+            0;
+
+        const users =
+            data.users ??
+            data.user_count ??
+            0;
+
+        const totalElement =
+            getElement("adminTotalReports");
+
+        const lostElement =
+            getElement("adminLostCount");
+
+        const foundElement =
+            getElement("adminFoundCount");
+
+        const usersElement =
+            getElement("adminUserCount");
+
+        if (totalElement) {
+
+            totalElement.textContent =
+                total;
+
+        }
+
+        if (lostElement) {
+
+            lostElement.textContent =
+                lost;
+
+        }
+
+        if (foundElement) {
+
+            foundElement.textContent =
+                found;
+
+        }
+
+        if (usersElement) {
+
+            usersElement.textContent =
+                users;
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Admin stats error:",
+            error
+        );
+
+    }
+
 }
 
 
@@ -4013,608 +3275,1035 @@ async function updateClaimStatus(
 async function loadAdminUsers() {
 
     if (!isAdminUser()) {
-        return;
-    }
 
+        showToast(
+            "Admin access required.",
+            "error"
+        );
+
+        return;
+
+    }
 
     const container =
-        $("adminUsers");
+        getElement("adminUsers");
 
-
-    if (!container) {
-        return;
-    }
-
-
-    container.innerHTML = `
-        <div class="loading">
-            Loading users...
-        </div>
-    `;
-
+    if (!container) return;
 
     try {
 
         const data =
             await apiRequest(
-                "/api/users",
+                "/admin/users",
                 {
                     method: "GET"
                 }
             );
 
-
         allAdminUsers =
-            getArray(
-                data,
-                [
-                    "users",
-                    "data"
-                ]
-            );
+            data?.users ||
+            data?.data ||
+            [];
 
+        if (!Array.isArray(allAdminUsers)) {
 
-        renderAdminUsers(
-            container,
-            allAdminUsers
-        );
+            allAdminUsers = [];
 
+        }
 
-    }
+        if (!allAdminUsers.length) {
 
-    catch (error) {
+            container.innerHTML = `
 
-        console.error(
-            "ADMIN USERS ERROR:",
-            error
-        );
+                <div class="empty-state">
 
+                    <div class="empty-icon">
+                        👥
+                    </div>
 
-        container.innerHTML = `
-            <div class="empty-state">
+                    <h3>
+                        No users found
+                    </h3>
 
-                <h3>
-                    Unable to load users
-                </h3>
-
-                <p>
-                    ${escapeHTML(error.message)}
-                </p>
-
-            </div>
-        `;
-    }
-}
-
-
-/* ============================================================
-   RENDER ADMIN USERS
-============================================================ */
-
-function renderAdminUsers(
-    container,
-    users
-) {
-
-    if (!users || users.length === 0) {
-
-        container.innerHTML = `
-            <div class="empty-state">
-
-                <div class="empty-icon">
-                    👥
                 </div>
 
-                <h3>
-                    No users found
-                </h3>
+            `;
 
-                <p>
-                    There are no registered users.
-                </p>
+            return;
 
-            </div>
-        `;
+        }
 
-        return;
-    }
+        container.innerHTML = `
 
+            <div class="admin-users-table">
 
-    container.innerHTML =
-        users
-            .map(user => {
+                ${allAdminUsers.map(user => `
 
-                const name =
-                    user.name ||
-                    user.username ||
-                    "User";
+                    <div class="admin-user-row">
 
-
-                const email =
-                    user.email ||
-                    "";
-
-
-                const role =
-                    user.role ||
-                    "student";
-
-
-                return `
-                    <div class="admin-user-card">
-
-                        <div>
-
-                            <h3>
-                                ${escapeHTML(name)}
-                            </h3>
-
-                            <p>
-                                ${escapeHTML(email)}
-                            </p>
-
-                        </div>
-
-
-                        <span class="status-badge ${
-                            String(role).toLowerCase()
-                        }">
+                        <strong>
                             ${escapeHTML(
-                                capitalize(role)
+                                user.name ||
+                                user.username ||
+                                "User"
+                            )}
+                        </strong>
+
+                        <span>
+                            ${escapeHTML(
+                                user.email ||
+                                ""
+                            )}
+                        </span>
+
+                        <span>
+                            ${escapeHTML(
+                                capitalize(
+                                    user.role ||
+                                    "student"
+                                )
                             )}
                         </span>
 
                     </div>
-                `;
 
-            })
-            .join("");
+                `).join("")}
+
+            </div>
+
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "Admin users error:",
+            error
+        );
+
+        showToast(
+            error.message ||
+            "Could not load users.",
+            "error"
+        );
+
+    }
+
 }
 
 
 /* ============================================================
-   ADMIN STATS
+   LOGIN FORM
 ============================================================ */
 
-async function refreshAdminStats() {
+function setupLoginForm() {
 
-    if (!isAdminUser()) {
-        return;
+    const form =
+        getElement("loginForm");
+
+    if (!form) return;
+
+    form.addEventListener(
+        "submit",
+        async function (event) {
+
+            event.preventDefault();
+
+            const email =
+                getElement("loginEmail")?.value.trim();
+
+            const password =
+                getElement("loginPassword")?.value;
+
+            if (!email || !password) {
+
+                showToast(
+                    "Enter email and password.",
+                    "error"
+                );
+
+                return;
+
+            }
+
+            const button =
+                form.querySelector(
+                    'button[type="submit"]'
+                );
+
+            if (button) {
+
+                button.disabled =
+                    true;
+
+                button.textContent =
+                    "Logging in...";
+
+            }
+
+            try {
+
+                const result =
+                    await apiRequest(
+                        "/login",
+                        {
+                            method: "POST",
+
+                            body: {
+
+                                email:
+                                    email,
+
+                                username:
+                                    email,
+
+                                password:
+                                    password
+
+                            }
+                        }
+                    );
+
+                if (
+                    result.success === false
+                ) {
+
+                    throw new Error(
+                        result.message ||
+                        "Login failed."
+                    );
+
+                }
+
+                currentUser =
+                    result.user ||
+                    {
+                        id:
+                            result.user_id,
+
+                        user_id:
+                            result.user_id,
+
+                        name:
+                            result.name ||
+                            email.split("@")[0],
+
+                        email:
+                            result.email ||
+                            email,
+
+                        role:
+                            result.role ||
+                            "student"
+                    };
+
+                localStorage.setItem(
+                    "campusfindUser",
+                    JSON.stringify(currentUser)
+                );
+
+                showLoggedInUI();
+
+                closeLogin();
+
+                form.reset();
+
+                showToast(
+                    result.message ||
+                    "Login successful.",
+                    "success"
+                );
+
+                await loadApplicationData();
+
+                showSection("dashboard");
+
+            } catch (error) {
+
+                console.error(
+                    "Login error:",
+                    error
+                );
+
+                showToast(
+                    error.message ||
+                    "Login failed.",
+                    "error"
+                );
+
+            } finally {
+
+                if (button) {
+
+                    button.disabled =
+                        false;
+
+                    button.textContent =
+                        "Login";
+
+                }
+
+            }
+
+        }
+    );
+
+}
+
+
+/* ============================================================
+   REGISTER FORM
+============================================================ */
+
+function setupRegisterForm() {
+
+    const form =
+        getElement("registerForm");
+
+    if (!form) return;
+
+    form.addEventListener(
+        "submit",
+        async function (event) {
+
+            event.preventDefault();
+
+            const name =
+                getElement("registerName")?.value.trim();
+
+            const email =
+                getElement("registerEmail")?.value.trim();
+
+            const role =
+                getElement("registerRole")?.value ||
+                "student";
+
+            const password =
+                getElement("registerPassword")?.value;
+
+            if (
+                !name ||
+                !email ||
+                !password
+            ) {
+
+                showToast(
+                    "Please fill all required fields.",
+                    "error"
+                );
+
+                return;
+
+            }
+
+            const button =
+                form.querySelector(
+                    'button[type="submit"]'
+                );
+
+            if (button) {
+
+                button.disabled =
+                    true;
+
+                button.textContent =
+                    "Creating...";
+
+            }
+
+            try {
+
+                const result =
+                    await apiRequest(
+                        "/register",
+                        {
+                            method: "POST",
+
+                            body: {
+
+                                name:
+                                    name,
+
+                                email:
+                                    email,
+
+                                role:
+                                    role,
+
+                                password:
+                                    password
+
+                            }
+                        }
+                    );
+
+                if (
+                    result.success === false
+                ) {
+
+                    throw new Error(
+                        result.message ||
+                        "Registration failed."
+                    );
+
+                }
+
+                showToast(
+                    result.message ||
+                    "Account created successfully.",
+                    "success"
+                );
+
+                form.reset();
+
+                showLogin();
+
+                const loginEmail =
+                    getElement("loginEmail");
+
+                if (loginEmail) {
+
+                    loginEmail.value =
+                        email;
+
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "Registration error:",
+                    error
+                );
+
+                showToast(
+                    error.message ||
+                    "Registration failed.",
+                    "error"
+                );
+
+            } finally {
+
+                if (button) {
+
+                    button.disabled =
+                        false;
+
+                    button.textContent =
+                        "Create Account";
+
+                }
+
+            }
+
+        }
+    );
+
+}
+
+
+/* ============================================================
+   LOGIN MODAL
+============================================================ */
+
+function showLogin() {
+
+    const loginModal =
+        getElement("loginModal");
+
+    const registerModal =
+        getElement("registerModal");
+
+    if (registerModal) {
+
+        registerModal.style.display =
+            "none";
+
     }
 
+    if (loginModal) {
+
+        loginModal.style.display =
+            "flex";
+
+    }
+
+}
+
+
+function showRegister() {
+
+    const loginModal =
+        getElement("loginModal");
+
+    const registerModal =
+        getElement("registerModal");
+
+    if (loginModal) {
+
+        loginModal.style.display =
+            "none";
+
+    }
+
+    if (registerModal) {
+
+        registerModal.style.display =
+            "flex";
+
+    }
+
+}
+
+
+function closeLogin() {
+
+    const loginModal =
+        getElement("loginModal");
+
+    const registerModal =
+        getElement("registerModal");
+
+    if (loginModal) {
+
+        loginModal.style.display =
+            "none";
+
+    }
+
+    if (registerModal) {
+
+        registerModal.style.display =
+            "none";
+
+    }
+
+}
+
+
+function closeModal(id) {
+
+    const modal =
+        getElement(id);
+
+    if (modal) {
+
+        modal.style.display =
+            "none";
+
+    }
+
+}
+
+
+/* ============================================================
+   PASSWORD TOGGLE
+============================================================ */
+
+function togglePassword(inputId) {
+
+    const input =
+        getElement(inputId);
+
+    if (!input) return;
+
+    input.type =
+        input.type === "password"
+            ? "text"
+            : "password";
+
+}
+
+
+function toggleRegisterPassword() {
+
+    const input =
+        getElement("registerPassword");
+
+    if (!input) return;
+
+    input.type =
+        input.type === "password"
+            ? "text"
+            : "password";
+
+}
+
+
+/* ============================================================
+   LOGOUT
+============================================================ */
+
+async function logoutUser() {
+
+    if (isLoggingOut) return;
+
+    isLoggingOut = true;
+
+    try {
+
+        await apiRequest(
+            "/logout",
+            {
+                method: "POST"
+            }
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "Logout request failed:",
+            error
+        );
+
+    }
+
+    currentUser = null;
+
+    allReports = [];
+
+    allMatches = [];
+
+    allNotifications = [];
+
+    allAdminClaims = [];
+
+    allAdminUsers = [];
+
+    localStorage.removeItem(
+        "campusfindUser"
+    );
+
+    hideAdminMenu();
+
+    showLoggedOutUI();
+
+    showToast(
+        "Logged out successfully.",
+        "success"
+    );
+
+    isLoggingOut = false;
+
+}
+
+
+/* ============================================================
+   NOTIFICATIONS
+============================================================ */
+
+async function openNotifications() {
+
+    if (!currentUser) {
+
+        showLogin();
+
+        return;
+
+    }
+
+    const panel =
+        getElement("notificationPanel");
+
+    if (panel) {
+
+        panel.style.display =
+            "block";
+
+    }
+
+    await loadNotifications();
+
+}
+
+
+function closeNotifications() {
+
+    const panel =
+        getElement("notificationPanel");
+
+    if (panel) {
+
+        panel.style.display =
+            "none";
+
+    }
+
+}
+
+
+function closeNotificationPanel() {
+
+    closeNotifications();
+
+}
+
+
+/* ============================================================
+   LOAD NOTIFICATIONS
+============================================================ */
+
+async function loadNotifications() {
+
+    if (!currentUser) return;
 
     try {
 
         const data =
             await apiRequest(
-                "/api/reports",
+                "/notifications",
                 {
                     method: "GET"
                 }
             );
 
+        if (Array.isArray(data)) {
 
-        const reports =
-            getArray(
-                data,
-                [
-                    "reports",
-                    "data",
-                    "items"
-                ]
-            );
+            allNotifications =
+                data;
 
+        } else {
 
-        allReports = reports;
+            allNotifications =
+                data?.notifications ||
+                data?.data ||
+                [];
 
-
-        const total =
-            reports.length;
-
-
-        const lost =
-            reports.filter(
-                report =>
-                    String(
-                        report.report_type ||
-                        report.type ||
-                        report.item_type ||
-                        ""
-                    ).toLowerCase() === "lost"
-            ).length;
-
-
-        const found =
-            reports.filter(
-                report =>
-                    String(
-                        report.report_type ||
-                        report.type ||
-                        report.item_type ||
-                        ""
-                    ).toLowerCase() === "found"
-            ).length;
-
-
-        if ($("adminTotalReports")) {
-            $("adminTotalReports").textContent =
-                total;
         }
 
+        if (!Array.isArray(allNotifications)) {
 
-        if ($("adminLostCount")) {
-            $("adminLostCount").textContent =
-                lost;
+            allNotifications = [];
+
         }
 
+        renderNotifications();
 
-        if ($("adminFoundCount")) {
-            $("adminFoundCount").textContent =
-                found;
+    } catch (error) {
+
+        console.error(
+            "Notification error:",
+            error
+        );
+
+        allNotifications = [];
+
+        renderNotifications();
+
+    }
+
+}
+
+
+/* ============================================================
+   RENDER NOTIFICATIONS
+============================================================ */
+
+function renderNotifications() {
+
+    const sectionList =
+        getElement("notificationList");
+
+    const panelList =
+        getElement("notificationsList");
+
+    if (!allNotifications.length) {
+
+        const emptyHTML = `
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    🔔
+                </div>
+
+                <h3>
+                    No notifications
+                </h3>
+
+                <p>
+                    You're all caught up.
+                </p>
+
+            </div>
+
+        `;
+
+        if (sectionList) {
+
+            sectionList.innerHTML =
+                emptyHTML;
+
         }
 
+        if (panelList) {
+
+            panelList.innerHTML =
+                emptyHTML;
+
+        }
+
+        return;
+
+    }
+
+    const html =
+        allNotifications
+            .map(
+                notification => {
+
+                    const title =
+                        notification.title ||
+                        notification.type ||
+                        "Notification";
+
+                    const message =
+                        notification.message ||
+                        notification.description ||
+                        "";
+
+                    const created =
+                        notification.created_at ||
+                        notification.time ||
+                        "";
+
+                    return `
+
+                        <div class="notification-item">
+
+                            <div class="notification-icon">
+                                🔔
+                            </div>
+
+                            <div>
+
+                                <strong>
+                                    ${escapeHTML(title)}
+                                </strong>
+
+                                <p>
+                                    ${escapeHTML(message)}
+                                </p>
+
+                                <small>
+                                    ${escapeHTML(created)}
+                                </small>
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                }
+            )
+            .join("");
+
+    if (sectionList) {
+
+        sectionList.innerHTML =
+            html;
+
+    }
+
+    if (panelList) {
+
+        panelList.innerHTML =
+            html;
+
+    }
+
+}
+
+
+/* ============================================================
+   CLEAR NOTIFICATIONS
+============================================================ */
+
+async function clearNotifications() {
+
+    if (!currentUser) return;
+
+    try {
 
         /*
-           User count is loaded separately.
-        */
+         * Try DELETE first.
+         */
+
+        let result;
 
         try {
 
-            const userData =
+            result =
                 await apiRequest(
-                    "/api/users",
+                    "/notifications",
                     {
-                        method: "GET"
+                        method: "DELETE"
                     }
                 );
 
+        } catch (deleteError) {
 
-            const users =
-                getArray(
-                    userData,
-                    [
-                        "users",
-                        "data"
-                    ]
+            /*
+             * Some backend versions use POST
+             * for clearing notifications.
+             */
+
+            result =
+                await apiRequest(
+                    "/notifications/clear",
+                    {
+                        method: "POST"
+                    }
                 );
 
-
-            if ($("adminUserCount")) {
-
-                $("adminUserCount").textContent =
-                    users.length;
-            }
-
         }
 
-        catch (error) {
+        allNotifications = [];
 
-            console.warn(
-                "Could not load user count.",
-                error
-            );
-        }
+        renderNotifications();
 
+        showToast(
+            result?.message ||
+            "Notifications cleared.",
+            "success"
+        );
 
-    }
-
-    catch (error) {
+    } catch (error) {
 
         console.error(
-            "ADMIN STATS ERROR:",
+            "Clear notifications error:",
             error
         );
+
+        /*
+         * If backend doesn't provide clear endpoint,
+         * don't break the page.
+         */
+
+        showToast(
+            "Notifications could not be cleared.",
+            "error"
+        );
+
     }
+
 }
 
 
 /* ============================================================
-   LOAD APPLICATION DATA
+   TOAST
 ============================================================ */
 
-async function loadApplicationData() {
+function showToast(
+    message,
+    type = "success"
+) {
 
-    if (!currentUser) {
-        return;
-    }
+    const toast =
+        getElement("toast");
 
+    const icon =
+        getElement("toastIcon");
 
-    try {
+    const messageElement =
+        getElement("toastMessage");
 
-        await loadReports();
+    if (!toast) return;
 
-    }
+    if (messageElement) {
 
-    catch (error) {
-
-        console.error(
-            "APPLICATION REPORT LOAD ERROR:",
-            error
-        );
-    }
-
-
-    try {
-
-        await loadNotifications();
+        messageElement.textContent =
+            message;
 
     }
 
-    catch (error) {
+    if (icon) {
 
-        console.error(
-            "APPLICATION NOTIFICATION LOAD ERROR:",
-            error
-        );
-    }
+        if (type === "error") {
 
+            icon.textContent =
+                "✕";
 
-    if (isAdminUser()) {
+        } else if (type === "info") {
 
-        try {
+            icon.textContent =
+                "ℹ";
 
-            await refreshAdminStats();
+        } else {
+
+            icon.textContent =
+                "✓";
 
         }
 
-        catch (error) {
-
-            console.error(
-                "ADMIN DATA ERROR:",
-                error
-            );
-        }
     }
 
-
-    updateUserUI();
-}
-
-
-/* ============================================================
-   FORM SETUP
-============================================================ */
-
-function setupForms() {
-
-    const loginForm =
-        $("loginForm");
-
-
-    if (loginForm) {
-
-        loginForm.addEventListener(
-            "submit",
-            handleLogin
-        );
-    }
-
-
-    const registerForm =
-        $("registerForm");
-
-
-    if (registerForm) {
-
-        registerForm.addEventListener(
-            "submit",
-            handleRegister
-        );
-    }
-
-
-    const reportForm =
-        $("reportForm");
-
-
-    if (reportForm) {
-
-        reportForm.addEventListener(
-            "submit",
-            handleReportSubmit
-        );
-    }
-
-
-    const claimForm =
-        $("claimForm");
-
-
-    if (claimForm) {
-
-        claimForm.addEventListener(
-            "submit",
-            handleClaimSubmit
-        );
-    }
-
-
-    const imageInput =
-        $("image");
-
-
-    if (imageInput) {
-
-        imageInput.addEventListener(
-            "change",
-            previewImage
-        );
-    }
-}
-
-
-/* ============================================================
-   MODAL CLICK HANDLER
-============================================================ */
-
-function setupModalHandlers() {
-
-    document.querySelectorAll(".modal").forEach(modal => {
-
-        modal.addEventListener(
-            "click",
-            event => {
-
-                if (
-                    event.target === modal
-                ) {
-
-                    modal.classList.remove(
-                        "active",
-                        "show"
-                    );
-
-                    modal.style.display =
-                        "none";
-                }
-            }
-        );
-    });
-}
-
-
-/* ============================================================
-   ESC KEY
-============================================================ */
-
-function setupEscapeKey() {
-
-    document.addEventListener(
-        "keydown",
-        event => {
-
-            if (event.key !== "Escape") {
-                return;
-            }
-
-
-            document.querySelectorAll(
-                ".modal.active, .modal.show"
-            ).forEach(modal => {
-
-                modal.classList.remove(
-                    "active",
-                    "show"
-                );
-
-                modal.style.display =
-                    "none";
-            });
-
-
-            closeNotificationPanel();
-        }
+    toast.classList.remove(
+        "success",
+        "error",
+        "info",
+        "show"
     );
+
+    toast.classList.add(
+        type,
+        "show"
+    );
+
+    setTimeout(
+        () => {
+
+            toast.classList.remove(
+                "show"
+            );
+
+        },
+        3500
+    );
+
 }
 
 
 /* ============================================================
-   SIDEBAR FALLBACK CLICK SUPPORT
+   CLOSE MODALS WHEN CLICKING OUTSIDE
 ============================================================ */
 
-function setupNavigation() {
+window.addEventListener(
+    "click",
+    function (event) {
 
-    document.querySelectorAll(
-        ".nav-item"
-    ).forEach(button => {
+        const loginModal =
+            getElement("loginModal");
 
-        button.addEventListener(
-            "click",
-            function(event) {
+        const registerModal =
+            getElement("registerModal");
 
-                /*
-                   This supports navigation even if
-                   inline onclick is changed later.
-                */
+        const claimModal =
+            getElement("claimModal");
 
-                const section =
-                    this.dataset.section;
+        if (
+            event.target ===
+            loginModal
+        ) {
 
+            closeLogin();
 
-                if (section) {
+        }
 
-                    event.preventDefault();
+        if (
+            event.target ===
+            registerModal
+        ) {
 
-                    showSection(section);
-                }
+            closeLogin();
 
-            }
-        );
-    });
-}
+        }
 
+        if (
+            event.target ===
+            claimModal
+        ) {
 
-/* ============================================================
-   CLOSE BUTTONS
-============================================================ */
-
-function setupCloseButtons() {
-
-    document.querySelectorAll(
-        "[data-close-modal]"
-    ).forEach(button => {
-
-        button.addEventListener(
-            "click",
-            () => {
-
-                const modalId =
-                    button.dataset.closeModal;
-
-                closeModal(modalId);
-            }
-        );
-    });
-}
-
-
-/* ============================================================
-   INITIALIZE
-============================================================ */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    async function() {
-
-        console.log(
-            "CampusFind JavaScript loaded."
-        );
-
-
-        /*
-           Start with application hidden.
-           checkCurrentUser() will decide whether
-           the login screen or application should show.
-        */
-
-        setAppVisible(false);
-
-
-        setupForms();
-
-        setupModalHandlers();
-
-        setupEscapeKey();
-
-        setupNavigation();
-
-        setupCloseButtons();
-
-
-        /*
-           Check Flask session.
-        */
-
-        await checkCurrentUser();
-
-
-        /*
-           Make sure user UI is updated.
-        */
-
-        if (currentUser) {
-
-            updateUserUI();
+            closeClaimModal();
 
         }
 
@@ -4623,15 +4312,45 @@ document.addEventListener(
 
 
 /* ============================================================
-   WINDOW EXPORTS
-   Required because HTML uses onclick=""
+   ESC KEY
 ============================================================ */
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (event.key !== "Escape") {
+            return;
+        }
+
+        closeLogin();
+
+        closeClaimModal();
+
+        closeNotifications();
+
+    }
+);
+
+
+/* ============================================================
+   MAKE FUNCTIONS AVAILABLE TO INLINE HTML
+============================================================ */
+
+window.showSection =
+    showSection;
+
+window.openReport =
+    openReport;
 
 window.showLogin =
     showLogin;
 
 window.showRegister =
     showRegister;
+
+window.closeLogin =
+    closeLogin;
 
 window.closeModal =
     closeModal;
@@ -4642,53 +4361,14 @@ window.togglePassword =
 window.toggleRegisterPassword =
     toggleRegisterPassword;
 
-window.handleLogin =
-    handleLogin;
-
-window.handleRegister =
-    handleRegister;
-
 window.logoutUser =
     logoutUser;
 
-window.showSection =
-    showSection;
-
-window.openReport =
-    openReport;
-
-window.previewImage =
-    previewImage;
-
-window.handleReportSubmit =
-    handleReportSubmit;
-
-window.loadReports =
-    loadReports;
-
-window.loadLostReports =
-    loadLostReports;
-
-window.loadFoundReports =
-    loadFoundReports;
-
-window.loadAIMatches =
-    loadAIMatches;
-
-window.openClaimModal =
-    openClaimModal;
-
-window.closeClaimModal =
-    closeClaimModal;
-
-window.handleClaimSubmit =
-    handleClaimSubmit;
-
-window.loadNotifications =
-    loadNotifications;
-
 window.openNotifications =
     openNotifications;
+
+window.closeNotifications =
+    closeNotifications;
 
 window.closeNotificationPanel =
     closeNotificationPanel;
@@ -4696,8 +4376,11 @@ window.closeNotificationPanel =
 window.clearNotifications =
     clearNotifications;
 
-window.loadAdminPanel =
-    loadAdminPanel;
+window.openClaimModal =
+    openClaimModal;
+
+window.closeClaimModal =
+    closeClaimModal;
 
 window.setAdminFilter =
     setAdminFilter;
@@ -4720,14 +4403,37 @@ window.updateReportStatus =
 window.updateClaimStatus =
     updateClaimStatus;
 
-window.isAdminUser =
-    isAdminUser;
-
 
 /* ============================================================
-   FINAL DEBUG MESSAGE
+   INITIAL SECTION STATE
 ============================================================ */
 
-console.log(
-    "CampusFind: script.js initialized successfully."
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        document
+            .querySelectorAll(".section")
+            .forEach(
+                section => {
+
+                    if (
+                        section.id ===
+                        "dashboard"
+                    ) {
+
+                        section.style.display =
+                            "block";
+
+                    } else {
+
+                        section.style.display =
+                            "none";
+
+                    }
+
+                }
+            );
+
+    }
 );
