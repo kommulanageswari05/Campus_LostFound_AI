@@ -1,17 +1,113 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
 
     <title>CampusFind | Lost & Found AI</title>
 
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
 
+
     <style>
-        /* ================= ADMIN FILTERS ================= */
+
+        /* ============================================================
+           LOGIN FIRST SCREEN
+        ============================================================ */
+
+        .login-first-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-first-card {
+            width: 100%;
+            max-width: 460px;
+            text-align: center;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 20px;
+            padding: 45px 35px;
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.08);
+        }
+
+        .login-first-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            background: #eef2ff;
+            font-size: 42px;
+        }
+
+        .login-first-card h1 {
+            margin: 0;
+            font-size: 32px;
+            color: #111827;
+        }
+
+        .login-first-subtitle {
+            margin: 6px 0 15px;
+            color: #4f46e5;
+            font-weight: 700;
+        }
+
+        .login-first-description {
+            color: #667085;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+
+        .login-first-btn,
+        .login-first-register-btn {
+            width: 100%;
+            padding: 13px 18px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .login-first-btn {
+            border: none;
+            background: #4f46e5;
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+
+        .login-first-btn:hover {
+            background: #4338ca;
+        }
+
+        .login-first-register-btn {
+            border: 1px solid #d0d5dd;
+            background: #ffffff;
+            color: #344054;
+        }
+
+        .login-first-register-btn:hover {
+            background: #f8fafc;
+        }
+
+
+        /* ============================================================
+           ADMIN FILTERS
+        ============================================================ */
 
         .admin-report-filters {
             display: flex;
@@ -40,7 +136,10 @@
             color: #4338ca;
         }
 
-        /* ================= CLAIM BUTTON ================= */
+
+        /* ============================================================
+           CLAIM BUTTON
+        ============================================================ */
 
         .claim-btn {
             width: 100%;
@@ -60,7 +159,10 @@
             transform: translateY(-1px);
         }
 
-        /* ================= CLAIM MODAL ================= */
+
+        /* ============================================================
+           CLAIM MODAL
+        ============================================================ */
 
         #claimModal {
             display: none;
@@ -74,7 +176,10 @@
             margin-bottom: 15px;
         }
 
-        /* ================= ADMIN CLAIM CARD ================= */
+
+        /* ============================================================
+           ADMIN CLAIM CARD
+        ============================================================ */
 
         .admin-claim-card {
             border: 1px solid #e2e8f0;
@@ -182,7 +287,23 @@
             font-weight: 700;
         }
 
+
+        /* ============================================================
+           LOGIN / REGISTER MODALS
+        ============================================================ */
+
+        #loginModal,
+        #registerModal {
+            display: none;
+        }
+
+
+        /* ============================================================
+           MOBILE
+        ============================================================ */
+
         @media (max-width: 700px) {
+
             .claimant-info {
                 grid-template-columns: 1fr;
             }
@@ -194,17 +315,76 @@
             .claim-actions {
                 flex-direction: column;
             }
+
+            .login-first-card {
+                padding: 35px 22px;
+            }
+
+            .login-first-card h1 {
+                font-size: 27px;
+            }
+
         }
+
     </style>
+
 </head>
 
 
 <body>
 
 
-<!-- =========================================================
+<!-- ============================================================
+     LOGIN FIRST SCREEN
+============================================================ -->
+
+<div id="loginFirstScreen"
+     class="login-first-screen">
+
+    <div class="login-first-card">
+
+        <div class="login-first-icon">
+            🔎
+        </div>
+
+        <h1>
+            CampusFind
+        </h1>
+
+        <p class="login-first-subtitle">
+            Lost & Found AI
+        </p>
+
+        <p class="login-first-description">
+            AI-powered campus lost and found system.
+            Login to report lost items, report found items,
+            find possible matches and manage your claims.
+        </p>
+
+        <button type="button"
+                class="login-first-btn"
+                onclick="showLogin()">
+
+            🔐 Login to CampusFind
+
+        </button>
+
+        <button type="button"
+                class="login-first-register-btn"
+                onclick="showRegister()">
+
+            📝 Create New Account
+
+        </button>
+
+    </div>
+
+</div>
+
+
+<!-- ============================================================
      SIDEBAR
-========================================================= -->
+============================================================ -->
 
 <aside class="sidebar">
 
@@ -215,8 +395,15 @@
         </div>
 
         <div>
-            <h2>CampusFind</h2>
-            <span>Lost & Found AI</span>
+
+            <h2>
+                CampusFind
+            </h2>
+
+            <span>
+                Lost & Found AI
+            </span>
+
         </div>
 
     </div>
@@ -295,8 +482,11 @@
 
             <div class="avatar"
                  id="userAvatar">
+
                 U
+
             </div>
+
 
             <div class="user-info">
 
@@ -325,17 +515,16 @@
 </aside>
 
 
-
-<!-- =========================================================
+<!-- ============================================================
      MAIN CONTENT
-========================================================= -->
+============================================================ -->
 
 <main class="main-content">
 
 
-    <!-- =====================================================
+    <!-- ========================================================
          DASHBOARD
-    ===================================================== -->
+    ======================================================== -->
 
     <section id="dashboard"
              class="section active">
@@ -361,8 +550,6 @@
 
         </div>
 
-
-        <!-- QUICK ACTIONS -->
 
         <div class="quick-actions">
 
@@ -413,8 +600,6 @@
         </div>
 
 
-        <!-- AI BANNER -->
-
         <div class="ai-banner">
 
             <div class="ai-banner-icon">
@@ -438,13 +623,13 @@
 
 
             <button onclick="showSection('ai')">
+
                 View Matches →
+
             </button>
 
         </div>
 
-
-        <!-- RECENT REPORTS -->
 
         <div class="section-header">
 
@@ -462,7 +647,9 @@
 
 
             <button onclick="showSection('lost')">
+
                 View All →
+
             </button>
 
         </div>
@@ -492,10 +679,9 @@
     </section>
 
 
-
-    <!-- =====================================================
+    <!-- ========================================================
          REPORT ITEM
-    ===================================================== -->
+    ======================================================== -->
 
     <section id="report"
              class="section">
@@ -563,7 +749,6 @@
                     </div>
 
                 </div>
-
 
 
                 <div class="form-row">
@@ -636,7 +821,6 @@
                 </div>
 
 
-
                 <div class="form-row">
 
                     <div class="form-group">
@@ -668,7 +852,6 @@
                 </div>
 
 
-
                 <div class="form-group">
 
                     <label>
@@ -682,7 +865,6 @@
                               required></textarea>
 
                 </div>
-
 
 
                 <div class="form-group">
@@ -701,7 +883,6 @@
                     </div>
 
                 </div>
-
 
 
                 <div class="form-actions">
@@ -729,10 +910,9 @@
     </section>
 
 
-
-    <!-- =====================================================
+    <!-- ========================================================
          LOST ITEMS
-    ===================================================== -->
+    ======================================================== -->
 
     <section id="lost"
              class="section">
@@ -774,10 +954,9 @@
     </section>
 
 
-
-    <!-- =====================================================
+    <!-- ========================================================
          FOUND ITEMS
-    ===================================================== -->
+    ======================================================== -->
 
     <section id="found"
              class="section">
@@ -820,10 +999,9 @@
     </section>
 
 
-
-    <!-- =====================================================
+    <!-- ========================================================
          AI MATCH
-    ===================================================== -->
+    ======================================================== -->
 
     <section id="ai"
              class="section">
@@ -835,8 +1013,7 @@
             </h1>
 
             <p>
-                AI-powered matching between lost and found
-                reports.
+                AI-powered matching between lost and found reports.
             </p>
 
         </div>
@@ -856,9 +1033,9 @@
                 </h2>
 
                 <p>
-                    AI is analyzing item names,
-                    descriptions, categories and locations
-                    to identify possible matches.
+                    AI is analyzing item names, descriptions,
+                    categories and locations to identify
+                    possible matches.
                 </p>
 
             </div>
@@ -890,10 +1067,9 @@
     </section>
 
 
-
-    <!-- =====================================================
+    <!-- ========================================================
          NOTIFICATIONS
-    ===================================================== -->
+    ======================================================== -->
 
     <section id="notifications"
              class="section">
@@ -935,10 +1111,9 @@
     </section>
 
 
-
-    <!-- =====================================================
+    <!-- ========================================================
          ADMIN PANEL
-    ===================================================== -->
+    ======================================================== -->
 
     <section id="admin"
              class="section">
@@ -954,7 +1129,6 @@
             </p>
 
         </div>
-
 
 
         <!-- ADMIN STATISTICS -->
@@ -983,7 +1157,6 @@
             </div>
 
 
-
             <div class="admin-stat-card">
 
                 <span>
@@ -1003,7 +1176,6 @@
                 </div>
 
             </div>
-
 
 
             <div class="admin-stat-card">
@@ -1027,7 +1199,6 @@
             </div>
 
 
-
             <div class="admin-stat-card">
 
                 <span>
@@ -1049,7 +1220,6 @@
             </div>
 
         </div>
-
 
 
         <!-- ADMIN CONTROLS -->
@@ -1111,10 +1281,7 @@
         </div>
 
 
-
-        <!-- =================================================
-             ADMIN REPORTS
-        ================================================= -->
+        <!-- ADMIN REPORTS -->
 
         <div class="admin-card">
 
@@ -1135,10 +1302,8 @@
             </div>
 
 
-
-            <!-- STATUS FILTERS -->
-
             <div class="admin-report-filters">
+
 
                 <button type="button"
                         class="admin-filter active"
@@ -1182,7 +1347,6 @@
             </div>
 
 
-
             <div id="adminReports"
                  class="admin-reports">
 
@@ -1207,10 +1371,7 @@
         </div>
 
 
-
-        <!-- =================================================
-             ADMIN CLAIM REQUESTS
-        ================================================= -->
+        <!-- ADMIN CLAIMS -->
 
         <div class="admin-card">
 
@@ -1223,9 +1384,9 @@
                     </h2>
 
                     <p>
-                        Review claimant information, item details
-                        and AI match percentage before approving
-                        or rejecting a claim.
+                        Review claimant information,
+                        item details and AI match percentage
+                        before approving or rejecting a claim.
                     </p>
 
                 </div>
@@ -1239,7 +1400,6 @@
                 </button>
 
             </div>
-
 
 
             <div id="adminClaims"
@@ -1266,7 +1426,6 @@
         </div>
 
 
-
         <!-- ADMIN USERS -->
 
         <div class="admin-card">
@@ -1289,7 +1448,6 @@
 
 
             <div id="adminUsers">
-
             </div>
 
         </div>
@@ -1299,13 +1457,13 @@
 </main>
 
 
-
-<!-- =========================================================
-     CLAIM ITEM MODAL
-========================================================= -->
+<!-- ============================================================
+     CLAIM MODAL
+============================================================ -->
 
 <div id="claimModal"
      class="modal">
+
 
     <div class="modal-content">
 
@@ -1319,7 +1477,6 @@
         </button>
 
 
-
         <div class="modal-header">
 
             <div class="modal-icon">
@@ -1331,26 +1488,20 @@
             </h2>
 
             <p>
-                Provide your details and explain why this
-                found item belongs to you.
+                Provide your details and explain why
+                this found item belongs to you.
             </p>
 
         </div>
 
 
-
         <form id="claimForm">
 
-
-            <!-- REPORT ID -->
 
             <input type="hidden"
                    id="claimReportId"
                    name="report_id">
 
-
-
-            <!-- ITEM NAME -->
 
             <div class="claim-item-info">
 
@@ -1370,9 +1521,6 @@
             </div>
 
 
-
-            <!-- CLAIMANT DETAILS -->
-
             <div class="form-group">
 
                 <label>
@@ -1386,7 +1534,6 @@
                        required>
 
             </div>
-
 
 
             <div class="form-group">
@@ -1404,7 +1551,6 @@
             </div>
 
 
-
             <div class="form-group">
 
                 <label>
@@ -1419,9 +1565,6 @@
 
             </div>
 
-
-
-            <!-- LOST LOCATION -->
 
             <div class="form-group">
 
@@ -1438,9 +1581,6 @@
             </div>
 
 
-
-            <!-- ITEM IDENTIFICATION -->
-
             <div class="form-group">
 
                 <label>
@@ -1455,9 +1595,6 @@
 
             </div>
 
-
-
-            <!-- CLAIM MESSAGE -->
 
             <div class="form-group">
 
@@ -1474,9 +1611,6 @@
             </div>
 
 
-
-            <!-- AI VERIFICATION -->
-
             <div class="claim-item-info">
 
                 <strong>
@@ -1484,16 +1618,13 @@
                 </strong>
 
                 <p>
-                    The administrator can review your claim
-                    details along with the AI match percentage
-                    before approving or rejecting the request.
+                    The administrator can review your claim details
+                    along with the AI match percentage before
+                    approving or rejecting the request.
                 </p>
 
             </div>
 
-
-
-            <!-- ACTION BUTTONS -->
 
             <div class="form-actions">
 
@@ -1521,24 +1652,24 @@
 </div>
 
 
-
-<!-- =========================================================
+<!-- ============================================================
      LOGIN MODAL
-========================================================= -->
+============================================================ -->
 
 <div id="loginModal"
      class="modal">
+
 
     <div class="modal-content">
 
 
         <button class="modal-close"
+                type="button"
                 onclick="closeLogin()">
 
             ×
 
         </button>
-
 
 
         <div class="modal-header">
@@ -1558,7 +1689,6 @@
         </div>
 
 
-
         <form id="loginForm">
 
 
@@ -1575,7 +1705,6 @@
                        required>
 
             </div>
-
 
 
             <div class="form-group">
@@ -1606,7 +1735,6 @@
             </div>
 
 
-
             <button type="submit"
                     class="primary-btn">
 
@@ -1615,7 +1743,6 @@
             </button>
 
         </form>
-
 
 
         <div class="modal-footer">
@@ -1640,24 +1767,24 @@
 </div>
 
 
-
-<!-- =========================================================
+<!-- ============================================================
      REGISTER MODAL
-========================================================= -->
+============================================================ -->
 
 <div id="registerModal"
      class="modal">
+
 
     <div class="modal-content">
 
 
         <button class="modal-close"
+                type="button"
                 onclick="closeLogin()">
 
             ×
 
         </button>
-
 
 
         <div class="modal-header">
@@ -1677,11 +1804,8 @@
         </div>
 
 
-
         <form id="registerForm">
 
-
-            <!-- FULL NAME -->
 
             <div class="form-group">
 
@@ -1698,9 +1822,6 @@
             </div>
 
 
-
-            <!-- EMAIL -->
-
             <div class="form-group">
 
                 <label for="registerEmail">
@@ -1716,14 +1837,12 @@
             </div>
 
 
-
-            <!-- ACCOUNT TYPE -->
-
             <div class="form-group">
 
                 <label for="registerRole">
                     Account Type
                 </label>
+
 
                 <select id="registerRole"
                         name="role"
@@ -1745,9 +1864,6 @@
 
             </div>
 
-
-
-            <!-- PASSWORD -->
 
             <div class="form-group">
 
@@ -1777,7 +1893,6 @@
             </div>
 
 
-
             <button type="submit"
                     class="primary-btn">
 
@@ -1786,7 +1901,6 @@
             </button>
 
         </form>
-
 
 
         <div class="modal-footer">
@@ -1811,10 +1925,9 @@
 </div>
 
 
-
-<!-- =========================================================
+<!-- ============================================================
      NOTIFICATION PANEL
-========================================================= -->
+============================================================ -->
 
 <div id="notificationPanel"
      class="notification-panel">
@@ -1824,18 +1937,15 @@
 
         <h2>
             🔔 Notifications
-        </h2>
-
-
         <button type="button"
-                onclick="closeNotifications()">
-
-            ×
+        id="closeNotificationBtn"
+        onclick="closeNotifications()">
+    ×
+</button>
 
         </button>
 
     </div>
-
 
 
     <div id="notificationsList">
@@ -1859,7 +1969,6 @@
     </div>
 
 
-
     <button class="clear-notifications"
             onclick="clearNotifications()">
 
@@ -1870,10 +1979,9 @@
 </div>
 
 
-
-<!-- =========================================================
+<!-- ============================================================
      TOAST
-========================================================= -->
+============================================================ -->
 
 <div id="toast"
      class="toast">
@@ -1889,12 +1997,13 @@
 </div>
 
 
-
-<!-- =========================================================
+<!-- ============================================================
      JAVASCRIPT
-========================================================= -->
+============================================================ -->
 
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 
+
 </body>
+
 </html>
