@@ -1,7 +1,7 @@
 /* ============================================================
    CAMPUSFIND - LOST & FOUND AI
    COMPLETE WHITE UI CSS
-   Navigation + Login Screen + Admin + Images FIXED
+   Navigation + Login Screen + Admin + Images + AI Match
 ============================================================ */
 
 
@@ -87,15 +87,7 @@ a {
 
 /* ============================================================
    APP VISIBILITY
-   IMPORTANT
 ============================================================ */
-
-/*
-   The login-first screen is above the application ONLY
-   when the user is not logged in.
-
-   JavaScript adds .hidden after successful login.
-*/
 
 #loginFirstScreen {
     position: fixed !important;
@@ -155,7 +147,6 @@ a {
     position: relative;
 
     width: 100%;
-
     max-width: 460px;
 
     background: #ffffff;
@@ -885,7 +876,6 @@ a {
 
 /* ============================================================
    REPORT IMAGE
-   SUPPORTS BOTH IMAGE CLASS NAMES
 ============================================================ */
 
 .report-card-image,
@@ -1336,116 +1326,280 @@ a {
 .form-actions button:last-child:hover {
     background: var(--primary-dark);
 }
+
+
 /* ============================================================
    ENHANCED AI MATCH UI
 ============================================================ */
 
 .ai-loading {
     text-align: center;
+
     padding: 45px 20px;
 }
 
 .ai-loading-icon {
     font-size: 48px;
+
     margin-bottom: 12px;
 }
 
 .ai-match-card {
     background: #ffffff;
+
     border: 1px solid #e5e7eb;
+
     border-radius: 18px;
+
     padding: 22px;
+
     margin-bottom: 24px;
+
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.07);
 }
 
+
+/* ============================================================
+   AI MATCH TOP
+============================================================ */
+
 .ai-match-top {
     display: flex;
+
     justify-content: space-between;
+
     align-items: center;
+
     gap: 20px;
+
     padding-bottom: 18px;
+
     border-bottom: 1px solid #e5e7eb;
 }
 
 .ai-match-top h3 {
     margin: 10px 0 5px;
+
     font-size: 21px;
+
     color: #111827;
 }
 
 .ai-match-badge {
     display: inline-block;
+
     padding: 6px 11px;
+
     border-radius: 20px;
+
     font-size: 11px;
+
     font-weight: 700;
+
     letter-spacing: .5px;
+
     background: #eef2ff;
+
     color: #4f46e5;
 }
 
 .ai-confidence {
     margin: 0;
+
     color: #6b7280;
+
     font-size: 13px;
 }
+
+
+/* ============================================================
+   AI SCORE CIRCLE
+============================================================ */
 
 .ai-score-circle {
     width: 82px;
     height: 82px;
+
     min-width: 82px;
+
     border-radius: 50%;
+
     display: flex;
+
     flex-direction: column;
+
     justify-content: center;
+
     align-items: center;
+
     border: 6px solid #e5e7eb;
+
+    background: #ffffff;
 }
 
 .ai-score-circle strong {
     font-size: 21px;
+
     line-height: 1;
 }
 
 .ai-score-circle span {
     font-size: 10px;
+
     margin-top: 4px;
 }
 
 .score-high {
     border-color: #22c55e;
+
     color: #15803d;
 }
 
 .score-medium {
     border-color: #f59e0b;
+
     color: #b45309;
 }
 
 .score-low {
     border-color: #9ca3af;
+
     color: #4b5563;
 }
 
 
-/* =========================
+/* ============================================================
+   CLEAR AI MATCH PERCENTAGE BOX
+============================================================ */
+
+.ai-match-percentage-box {
+    margin-top: 18px;
+
+    padding: 18px;
+
+    background: #f8faff;
+
+    border: 1px solid #c7d2fe;
+
+    border-radius: 14px;
+}
+
+.ai-match-percentage-header {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 15px;
+
+    margin-bottom: 10px;
+}
+
+.ai-match-percentage-title {
+    color: #374151;
+
+    font-size: 13px;
+
+    font-weight: 700;
+}
+
+.ai-match-percentage-value {
+    color: #4f46e5;
+
+    font-size: 24px;
+
+    font-weight: 800;
+}
+
+.ai-match-percentage-bar {
+    width: 100%;
+
+    height: 10px;
+
+    background: #e5e7eb;
+
+    border-radius: 20px;
+
+    overflow: hidden;
+}
+
+.ai-match-percentage-fill {
+    height: 100%;
+
+    width: 0%;
+
+    background: #4f46e5;
+
+    border-radius: 20px;
+
+    transition: width 0.7s ease;
+}
+
+.ai-match-percentage-label {
+    margin-top: 8px;
+
+    font-size: 11px;
+
+    color: #6b7280;
+}
+
+
+/* ============================================================
+   AI MATCH PERCENTAGE COLORS
+============================================================ */
+
+.ai-match-percentage-value.high {
+    color: #16a34a;
+}
+
+.ai-match-percentage-value.medium {
+    color: #d97706;
+}
+
+.ai-match-percentage-value.low {
+    color: #dc2626;
+}
+
+.ai-match-percentage-fill.high {
+    background: #16a34a;
+}
+
+.ai-match-percentage-fill.medium {
+    background: #d97706;
+}
+
+.ai-match-percentage-fill.low {
+    background: #dc2626;
+}
+
+
+/* ============================================================
    LOST + FOUND COMPARISON
-========================= */
+============================================================ */
 
 .ai-comparison {
     display: grid;
+
     grid-template-columns: 1fr 70px 1fr;
+
     gap: 15px;
+
     align-items: stretch;
+
     margin-top: 22px;
 }
 
 .ai-item-card {
     border: 1px solid #e5e7eb;
+
     border-radius: 15px;
+
     padding: 16px;
+
     background: #fafafa;
+
+    min-width: 0;
 }
 
 .lost-item-card {
@@ -1456,13 +1610,20 @@ a {
     border-top: 4px solid #22c55e;
 }
 
+
+/* ============================================================
+   AI ITEM TITLE
+============================================================ */
+
 .ai-item-title {
     margin-bottom: 13px;
 }
 
 .ai-item-title span {
     font-size: 11px;
+
     font-weight: 800;
+
     letter-spacing: .7px;
 }
 
@@ -1475,72 +1636,175 @@ a {
 }
 
 
-/* =========================
-   IMAGE
-========================= */
+/* ============================================================
+   CLEAR LOST / FOUND ITEM LABEL
+============================================================ */
+
+.ai-item-label {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    padding: 6px 10px;
+
+    border-radius: 7px;
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    margin-bottom: 10px;
+}
+
+.ai-item-label.lost {
+    background: #fef2f2;
+
+    color: #dc2626;
+
+    border: 1px solid #fecaca;
+}
+
+.ai-item-label.found {
+    background: #ecfdf3;
+
+    color: #15803d;
+
+    border: 1px solid #bbf7d0;
+}
+
+
+/* ============================================================
+   ITEM NAME BOX
+============================================================ */
+
+.ai-matched-item-name {
+    margin-top: 12px;
+
+    padding: 11px 13px;
+
+    background: #ffffff;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 9px;
+}
+
+.ai-matched-item-name strong {
+    display: block;
+
+    color: #111827;
+
+    font-size: 13px;
+
+    margin-bottom: 4px;
+}
+
+.ai-matched-item-name span {
+    color: #4f46e5;
+
+    font-size: 15px;
+
+    font-weight: 800;
+
+    word-break: break-word;
+}
+
+
+/* ============================================================
+   AI IMAGE
+============================================================ */
 
 .ai-image-wrapper {
     width: 100%;
+
     height: 190px;
+
     border-radius: 12px;
+
     overflow: hidden;
+
     background: #f3f4f6;
+
     margin-bottom: 15px;
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
 }
 
 .ai-match-image {
     width: 100%;
+
     height: 100%;
+
     object-fit: contain;
+
     display: block;
 }
 
 .ai-image-wrapper.no-image {
     flex-direction: column;
+
     font-size: 35px;
+
     color: #9ca3af;
 }
 
 .ai-image-wrapper.no-image span {
     font-size: 12px;
+
     margin-top: 5px;
 }
 
 .ai-image-wrapper.image-error {
     display: flex;
+
     color: #9ca3af;
 }
 
 .ai-image-wrapper.image-error::after {
     content: "Image unavailable";
+
     font-size: 12px;
 }
 
 
-/* =========================
-   ITEM DETAILS
-========================= */
+/* ============================================================
+   AI ITEM DETAILS
+============================================================ */
 
 .ai-item-card h4 {
     font-size: 18px;
+
     margin-bottom: 14px;
+
     color: #111827;
+
+    word-break: break-word;
 }
 
 .ai-detail {
     display: flex;
+
     gap: 7px;
+
     align-items: flex-start;
+
     margin: 8px 0;
+
     font-size: 13px;
+
     color: #4b5563;
 }
 
 .ai-detail strong {
     color: #374151;
+
+    flex-shrink: 0;
 }
 
 .ai-detail span {
@@ -1549,167 +1813,230 @@ a {
 
 .ai-description {
     margin-top: 15px;
+
     padding-top: 12px;
+
     border-top: 1px solid #e5e7eb;
 }
 
 .ai-description strong {
     font-size: 13px;
+
     color: #374151;
 }
 
 .ai-description p {
     margin-top: 7px;
+
     color: #6b7280;
+
     font-size: 13px;
+
     line-height: 1.6;
+
+    word-break: break-word;
 }
 
 
-/* =========================
+/* ============================================================
    AI CONNECTION
-========================= */
+============================================================ */
 
 .ai-match-connector {
     display: flex;
+
     flex-direction: column;
+
     align-items: center;
+
     justify-content: center;
+
     gap: 8px;
 }
 
 .connector-line {
     width: 2px;
+
     flex: 1;
+
     background: #d1d5db;
 }
 
 .connector-icon {
     width: 42px;
     height: 42px;
+
     border-radius: 50%;
+
     background: #eef2ff;
+
     color: #4f46e5;
+
     display: flex;
+
     align-items: center;
     justify-content: center;
+
     font-size: 20px;
+
     font-weight: 700;
 }
 
 .ai-match-connector span {
     font-size: 10px;
+
     font-weight: 800;
+
     color: #4f46e5;
 }
 
 
-/* =========================
+/* ============================================================
    MATCH REASONS
-========================= */
+============================================================ */
 
 .ai-match-reasons {
     margin-top: 20px;
+
     padding: 17px;
+
     background: #f9fafb;
+
     border-radius: 13px;
+
     border: 1px solid #e5e7eb;
 }
 
 .ai-match-reasons h4 {
     margin-bottom: 12px;
+
     font-size: 14px;
+
     color: #111827;
 }
 
 .match-reasons-list {
     display: flex;
+
     flex-wrap: wrap;
+
     gap: 8px;
 }
 
 .match-reason {
     padding: 7px 10px;
+
     border-radius: 20px;
+
     background: #ecfdf5;
+
     color: #15803d;
+
     border: 1px solid #bbf7d0;
+
     font-size: 12px;
+
     font-weight: 600;
 }
 
 
-/* =========================
-   CLAIM BUTTON
-========================= */
+/* ============================================================
+   AI CLAIM BUTTON
+============================================================ */
 
 .ai-claim-button {
     width: 100%;
+
     border: none;
+
     border-radius: 9px;
+
     padding: 11px 14px;
+
     margin-top: 16px;
+
     cursor: pointer;
+
     font-weight: 700;
+
     font-size: 13px;
+
     background: #4f46e5;
+
     color: white;
+
     transition: .2s ease;
 }
 
 .ai-claim-button:hover {
     transform: translateY(-1px);
+
     opacity: .92;
 }
 
 
-/* =========================
-   FOOTER + PROGRESS
-========================= */
+/* ============================================================
+   AI MATCH FOOTER + PROGRESS
+============================================================ */
 
 .ai-match-footer {
     margin-top: 20px;
+
     padding-top: 17px;
+
     border-top: 1px solid #e5e7eb;
 }
 
 .ai-match-footer > div:first-child {
     display: flex;
+
     justify-content: space-between;
+
     align-items: center;
+
     margin-bottom: 9px;
 }
 
 .ai-match-footer span {
     color: #4b5563;
+
     font-size: 13px;
+
     font-weight: 600;
 }
 
 .ai-match-footer strong {
     font-size: 20px;
+
     color: #4f46e5;
 }
 
 .ai-progress {
     width: 100%;
+
     height: 8px;
+
     border-radius: 10px;
+
     overflow: hidden;
+
     background: #e5e7eb;
 }
 
 .ai-progress-bar {
     height: 100%;
+
     border-radius: 10px;
+
     background: #4f46e5;
+
     transition: width .6s ease;
 }
 
 
-/* =========================
-   EMPTY STATE
-========================= */
+/* ============================================================
+   AI EMPTY STATE
+============================================================ */
 
 .ai-empty-state {
     padding: 40px 20px;
@@ -1717,102 +2044,58 @@ a {
 
 .ai-tip-box {
     max-width: 500px;
+
     margin: 20px auto 0;
+
     padding: 15px 20px;
+
     text-align: left;
+
     background: #f9fafb;
+
     border: 1px solid #e5e7eb;
+
     border-radius: 12px;
 }
 
 .ai-tip-box strong {
     display: block;
+
     margin-bottom: 8px;
 }
 
 .ai-tip-box ul {
     padding-left: 20px;
+
     color: #6b7280;
+
     line-height: 1.8;
 }
 
 
-/* =========================
-   RETRY
-========================= */
+/* ============================================================
+   RETRY AI BUTTON
+============================================================ */
 
 .retry-ai-button {
     margin-top: 15px;
+
     border: none;
+
     border-radius: 8px;
+
     padding: 10px 18px;
+
     background: #4f46e5;
+
     color: white;
+
     cursor: pointer;
+
     font-weight: 600;
 }
 
 
-/* =========================
-   MOBILE
-========================= */
-
-@media (max-width: 800px) {
-
-    .ai-comparison {
-        grid-template-columns: 1fr;
-    }
-
-    .ai-match-connector {
-        flex-direction: row;
-        height: 45px;
-    }
-
-    .connector-line {
-        width: auto;
-        height: 2px;
-        flex: 1;
-    }
-
-    .ai-score-circle {
-        width: 70px;
-        height: 70px;
-        min-width: 70px;
-    }
-
-    .ai-match-top h3 {
-        font-size: 17px;
-    }
-
-}
-
-
-@media (max-width: 500px) {
-
-    .ai-match-card {
-        padding: 14px;
-    }
-
-    .ai-match-top {
-        align-items: flex-start;
-    }
-
-    .ai-score-circle {
-        width: 62px;
-        height: 62px;
-        min-width: 62px;
-        border-width: 4px;
-    }
-
-    .ai-score-circle strong {
-        font-size: 17px;
-    }
-
-    .ai-image-wrapper {
-        height: 160px;
-    }
-
-}
 /* ============================================================
    NOTIFICATIONS
 ============================================================ */
@@ -3017,7 +3300,9 @@ img {
 .admin-report-card,
 .admin-report-image,
 .image-preview,
-.match-card {
+.match-card,
+.ai-match-card,
+.ai-item-card {
     overflow: hidden;
 }
 
@@ -3110,6 +3395,39 @@ img {
 /* ============================================================
    RESPONSIVE - MOBILE
 ============================================================ */
+
+@media (max-width: 800px) {
+
+    .ai-comparison {
+        grid-template-columns: 1fr;
+    }
+
+    .ai-match-connector {
+        flex-direction: row;
+
+        height: 45px;
+    }
+
+    .connector-line {
+        width: auto;
+
+        height: 2px;
+
+        flex: 1;
+    }
+
+    .ai-score-circle {
+        width: 70px;
+        height: 70px;
+
+        min-width: 70px;
+    }
+
+    .ai-match-top h3 {
+        font-size: 17px;
+    }
+}
+
 
 @media (max-width: 768px) {
 
@@ -3314,6 +3632,41 @@ img {
         max-width: calc(100vw - 20px);
     }
 
+
+    /* AI MATCH MOBILE */
+
+    .ai-match-card {
+        padding: 14px;
+    }
+
+    .ai-match-top {
+        align-items: flex-start;
+    }
+
+    .ai-score-circle {
+        width: 62px;
+        height: 62px;
+
+        min-width: 62px;
+
+        border-width: 4px;
+    }
+
+    .ai-score-circle strong {
+        font-size: 17px;
+    }
+
+    .ai-image-wrapper {
+        height: 160px;
+    }
+
+    .ai-match-percentage-box {
+        padding: 14px;
+    }
+
+    .ai-match-percentage-value {
+        font-size: 21px;
+    }
 }
 
 
@@ -3406,6 +3759,15 @@ img {
         font-size: 25px;
     }
 
+    .ai-match-percentage-header {
+        flex-direction: column;
+
+        align-items: flex-start;
+    }
+
+    .ai-match-percentage-value {
+        font-size: 22px;
+    }
 }
 
 

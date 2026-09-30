@@ -2006,29 +2006,180 @@ function renderAIMatches() {
 
 /* ============================================================
    CREATE AI MATCH CARD
+   FIXED - SUPPORTS NESTED LOST / FOUND OBJECTS
 ============================================================ */
 
 function createMatchCard(match) {
 
+    /* ========================================================
+       GET LOST / FOUND OBJECTS
+    ======================================================== */
+
+    const lost =
+        match?.lost ||
+        match?.lost_report ||
+        {};
+
+    const found =
+        match?.found ||
+        match?.found_report ||
+        {};
+
+
+    /* ========================================================
+       MATCH PERCENTAGE
+    ======================================================== */
+
     const percentage =
         getMatchPercentage(match);
 
+
+    /* ========================================================
+       ITEM NAMES
+    ======================================================== */
+
+    const lostItem =
+        match?.lost_item ||
+        match?.lost_item_name ||
+        lost?.item_name ||
+        lost?.item ||
+        "Lost Item";
+
+
+    const foundItem =
+        match?.found_item ||
+        match?.found_item_name ||
+        found?.item_name ||
+        found?.item ||
+        "Found Item";
+
+
+    /* ========================================================
+       LOCATIONS
+    ======================================================== */
+
+    const lostLocation =
+        match?.lost_location ||
+        match?.lost_item_location ||
+        lost?.location ||
+        "Unknown location";
+
+
+    const foundLocation =
+        match?.found_location ||
+        match?.found_item_location ||
+        found?.location ||
+        "Unknown location";
+
+
+    /* ========================================================
+       CATEGORIES
+    ======================================================== */
+
+    const lostCategory =
+        match?.lost_category ||
+        lost?.category ||
+        "Other";
+
+
+    const foundCategory =
+        match?.found_category ||
+        found?.category ||
+        "Other";
+
+
+    /* ========================================================
+       DESCRIPTIONS
+    ======================================================== */
+
+    const lostDescription =
+        match?.lost_description ||
+        match?.lost_item_description ||
+        lost?.description ||
+        "No description provided.";
+
+
+    const foundDescription =
+        match?.found_description ||
+        match?.found_item_description ||
+        found?.description ||
+        "No description provided.";
+
+
+    /* ========================================================
+       IMAGES
+    ======================================================== */
+
     const lostImage =
         getImageUrl(
-            match.lost_image
+            match?.lost_image ||
+            lost?.image ||
+            ""
         );
+
 
     const foundImage =
         getImageUrl(
-            match.found_image
+            match?.found_image ||
+            found?.image ||
+            ""
         );
+
+
+    /* ========================================================
+       REPORT IDS
+    ======================================================== */
+
+    const lostId =
+        match?.lost_id ||
+        match?.lost_report_id ||
+        lost?.id ||
+        "";
+
+
+    const foundId =
+        match?.found_id ||
+        match?.found_report_id ||
+        found?.id ||
+        match?.report_id ||
+        "";
+
+
+    /* ========================================================
+       MATCH LABEL
+    ======================================================== */
+
+    let scoreLabel = "Possible Match";
+
+    if (percentage >= 80) {
+
+        scoreLabel = "High Match";
+
+    } else if (percentage >= 50) {
+
+        scoreLabel = "Good Match";
+
+    } else if (percentage >= 30) {
+
+        scoreLabel = "Possible Match";
+
+    } else {
+
+        scoreLabel = "Low Match";
+
+    }
+
+
+    /* ========================================================
+       LOST IMAGE
+    ======================================================== */
 
     const lostImageHTML =
         lostImage
             ? `
                 <img
                     src="${escapeHTML(lostImage)}"
-                    alt="Lost item"
+                    alt="${escapeHTML(lostItem)}"
                     loading="lazy"
                     onerror="this.style.display='none';">
               `
@@ -2038,12 +2189,17 @@ function createMatchCard(match) {
                 </div>
               `;
 
+
+    /* ========================================================
+       FOUND IMAGE
+    ======================================================== */
+
     const foundImageHTML =
         foundImage
             ? `
                 <img
                     src="${escapeHTML(foundImage)}"
-                    alt="Found item"
+                    alt="${escapeHTML(foundItem)}"
                     loading="lazy"
                     onerror="this.style.display='none';">
               `
@@ -2053,26 +2209,109 @@ function createMatchCard(match) {
                 </div>
               `;
 
-    const foundId =
-        match.found_id ||
-        match.report_id;
+
+    /* ========================================================
+       AI REASON
+    ======================================================== */
+
+    let reason =
+        match?.reason ||
+        match?.match_reason ||
+        "";
+
+
+    if (!reason) {
+
+        const reasons = [];
+
+        if (
+            String(lostItem).toLowerCase() ===
+            String(foundItem).toLowerCase()
+        ) {
+
+            reasons.push(
+                "The item names are the same."
+            );
+
+        }
+
+        if (
+            String(lostCategory).toLowerCase() ===
+            String(foundCategory).toLowerCase()
+        ) {
+
+            reasons.push(
+                "Both items belong to the same category."
+            );
+
+        }
+
+        if (
+            String(lostLocation).toLowerCase() ===
+            String(foundLocation).toLowerCase()
+        ) {
+
+            reasons.push(
+                "The reported locations are similar."
+            );
+
+        }
+
+        reason =
+            reasons.length
+                ? reasons.join(" ")
+                : "The AI found similarities between the lost and found reports.";
+
+    }
+
+
+    /* ========================================================
+       RETURN MATCH CARD
+    ======================================================== */
 
     return `
 
         <div class="match-card">
 
+
+            <!-- ==================================================
+                 AI SCORE
+            ================================================== -->
+
             <div class="match-score">
 
-                🤖 AI Match:
-                <strong>
+                <div class="match-score-title">
+                    🤖 AI Match Percentage
+                </div>
+
+                <div class="match-percentage">
                     ${percentage}%
-                </strong>
+                </div>
+
+                <div class="match-score-label">
+                    ${escapeHTML(scoreLabel)}
+                </div>
+
+                <div class="match-progress">
+
+                    <div
+                        class="match-progress-fill"
+                        style="width:${percentage}%;">
+                    </div>
+
+                </div>
 
             </div>
 
 
+            <!-- ==================================================
+                 TWO MATCHED ITEMS
+            ================================================== -->
+
             <div class="match-items">
 
+
+                <!-- ================= LOST ITEM ================= -->
 
                 <div class="match-item">
 
@@ -2083,38 +2322,40 @@ function createMatchCard(match) {
                     </div>
 
                     <span class="match-label">
-                        LOST ITEM
+                        🔍 YOUR LOST ITEM
                     </span>
 
                     <h3>
-                        ${escapeHTML(
-                            match.lost_item ||
-                            "Lost Item"
-                        )}
+                        ${escapeHTML(lostItem)}
                     </h3>
 
                     <p>
                         📍
+                        ${escapeHTML(lostLocation)}
+                    </p>
+
+                    <p>
+                        🏷️
                         ${escapeHTML(
-                            match.lost_location ||
-                            ""
+                            capitalize(lostCategory)
                         )}
                     </p>
 
                     <small>
-                        ${escapeHTML(
-                            match.lost_description ||
-                            ""
-                        )}
+                        ${escapeHTML(lostDescription)}
                     </small>
 
                 </div>
 
 
+                <!-- ================= ARROW ================= -->
+
                 <div class="match-arrow">
                     ↔
                 </div>
 
+
+                <!-- ================= FOUND ITEM ================= -->
 
                 <div class="match-item">
 
@@ -2125,51 +2366,55 @@ function createMatchCard(match) {
                     </div>
 
                     <span class="match-label">
-                        FOUND ITEM
+                        📦 MATCHED FOUND ITEM
                     </span>
 
                     <h3>
-                        ${escapeHTML(
-                            match.found_item ||
-                            "Found Item"
-                        )}
+                        ${escapeHTML(foundItem)}
                     </h3>
 
                     <p>
                         📍
+                        ${escapeHTML(foundLocation)}
+                    </p>
+
+                    <p>
+                        🏷️
                         ${escapeHTML(
-                            match.found_location ||
-                            ""
+                            capitalize(foundCategory)
                         )}
                     </p>
 
                     <small>
-                        ${escapeHTML(
-                            match.found_description ||
-                            ""
-                        )}
+                        ${escapeHTML(foundDescription)}
                     </small>
 
                 </div>
 
+
             </div>
 
+
+            <!-- ==================================================
+                 AI REASON
+            ================================================== -->
 
             <div class="match-reason">
 
                 <strong>
-                    Why AI thinks they may match:
+                    🤖 Why AI thinks they may match:
                 </strong>
 
                 <p>
-                    ${escapeHTML(
-                        match.reason ||
-                        "The AI found similarities between the two reports."
-                    )}
+                    ${escapeHTML(reason)}
                 </p>
 
             </div>
 
+
+            <!-- ==================================================
+                 CLAIM BUTTON
+            ================================================== -->
 
             ${
                 foundId
@@ -2177,19 +2422,24 @@ function createMatchCard(match) {
                         <button
                             type="button"
                             class="claim-btn"
-                            onclick="openClaimModal(${Number(foundId)}, ${Number(match.lost_id || 0)})">
-                            📦 Claim Found Item
+                            onclick="openClaimModal(
+                                ${Number(foundId)},
+                                ${Number(lostId || 0)}
+                            )">
+
+                            📦 Claim Matched Found Item
+
                         </button>
                       `
                     : ""
             }
+
 
         </div>
 
     `;
 
 }
-
 
 /* ============================================================
    ADMIN REPORTS
